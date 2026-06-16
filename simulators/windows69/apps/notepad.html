@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Untitled - Notepad</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;font-family:'Segoe UI',sans-serif;background:#fff;display:flex;flex-direction:column;overflow:hidden;font-size:12px}
+
+/* ── MENU BAR ── */
+.menubar{height:22px;background:#f2f2f2;border-bottom:1px solid #dfdfdf;display:flex;align-items:stretch;user-select:none;position:relative;z-index:200}
+.mb-item{padding:0 10px;display:flex;align-items:center;cursor:default;color:#000;white-space:nowrap}
+.mb-item:hover,.mb-item.open{background:#d0e8ff}
+
+/* ── DROPDOWN ── */
+.mb-drop{position:absolute;top:100%;left:0;background:#f2f2f2;border:1px solid #aaa;box-shadow:2px 2px 6px rgba(0,0,0,.25);min-width:200px;display:none;z-index:999;padding:2px 0}
+.mb-item.open .mb-drop{display:block}
+.dd-item{padding:5px 40px 5px 32px;display:flex;justify-content:space-between;align-items:center;cursor:default;color:#000;position:relative;white-space:nowrap}
+.dd-item:hover{background:#0078d7;color:#fff}
+.dd-item:hover .dd-sc,.dd-item:hover .dd-check{color:#fff}
+.dd-item.disabled{color:#aaa;pointer-events:none}
+.dd-sep{border-top:1px solid #ddd;margin:3px 0}
+.dd-sc{color:#666;font-size:11px;margin-left:24px}
+.dd-check{position:absolute;left:10px;color:#000;font-size:11px;display:none}
+.dd-item.checked .dd-check{display:block}
+.dd-arrow{position:absolute;right:8px;font-size:10px;color:#555}
+.dd-item:hover .dd-arrow{color:#fff}
+
+/* Sub-menu */
+.sub-menu{position:absolute;left:100%;top:-3px;background:#f2f2f2;border:1px solid #aaa;box-shadow:2px 2px 6px rgba(0,0,0,.25);min-width:180px;display:none;padding:2px 0;z-index:1000}
+.dd-item:hover .sub-menu{display:block}
+
+/* ── EDITOR ── */
+.editor-wrap{flex:1;position:relative;overflow:hidden}
+#editor{
+  position:absolute;inset:0;border:none;resize:none;outline:none;
+  padding:4px 8px;
+  font-family:'Courier New',Consolas,monospace;font-size:14px;line-height:1.5;
+  color:#000;background:#fff;
+  tab-size:4;
+  overflow:auto;
+  white-space:pre;word-wrap:normal;
+}
+#editor.wordwrap{white-space:pre-wrap;word-wrap:break-word}
+
+/* ── STATUS BAR ── */
+.statusbar{height:22px;background:#f0f0f0;border-top:1px solid #ddd;display:flex;align-items:center;justify-content:flex-end;padding:0;font-size:11px;color:#333;flex-shrink:0}
+.sb-cell{padding:0 16px;border-left:1px solid #ddd;height:100%;display:flex;align-items:center;white-space:nowrap}
+
+/* ── FIND / REPLACE DIALOG ── */
+.dialog-overlay{position:fixed;inset:0;display:none;z-index:500;pointer-events:none}
+.dialog-overlay.visible{pointer-events:all}
+.dialog{position:absolute;top:60px;left:60px;background:#f2f2f2;border:1px solid #aaa;box-shadow:4px 4px 10px rgba(0,0,0,.3);min-width:320px;pointer-events:all}
+.dialog-titlebar{background:#0078d7;color:#fff;padding:6px 10px;font-size:12px;font-weight:600;display:flex;justify-content:space-between;align-items:center;cursor:move}
+.dialog-close{cursor:pointer;padding:0 4px;font-size:14px;line-height:1}
+.dialog-close:hover{background:rgba(255,255,255,.2)}
+.dialog-body{padding:14px 16px;display:flex;flex-direction:column;gap:10px}
+.dialog-row{display:flex;align-items:center;gap:8px}
+.dialog-row label{width:82px;text-align:right;flex-shrink:0}
+.dialog-row input{flex:1;padding:3px 5px;border:1px solid #aaa;outline:none;font-family:inherit;font-size:12px}
+.dialog-row input:focus{border-color:#0078d7}
+.dialog-footer{padding:0 16px 14px;display:flex;justify-content:flex-end;gap:6px}
+.d-btn{padding:4px 18px;font-size:12px;border:1px solid #aaa;background:#e1e1e1;cursor:pointer;font-family:inherit}
+.d-btn:hover{background:#ccc}
+.d-btn.primary{background:#0078d7;color:#fff;border-color:#005fa3}
+.d-btn.primary:hover{background:#005fa3}
+
+/* drag cursor */
+.dialog-body .dialog-row input{background:#fff}
+</style>
+</head>
+<body>
+
+<!-- MENU BAR -->
+<div class="menubar" id="menubar">
+
+  <div class="mb-item" data-menu="file">File
+    <div class="mb-drop">
+      <div class="dd-item" data-action="new">New<span class="dd-sc">Ctrl+N</span></div>
+      <div class="dd-item" data-action="open">Open...<span class="dd-sc">Ctrl+O</span></div>
+      <div class="dd-sep"></div>
+      <div class="dd-item" data-action="save">Save<span class="dd-sc">Ctrl+S</span></div>
+      <div class="dd-item" data-action="saveas">Save As...</div>
+      <div class="dd-sep"></div>
+      <div class="dd-item" data-action="exit">Exit</div>
+    </div>
+  </div>
+
+  <div class="mb-item" data-menu="edit">Edit
+    <div class="mb-drop">
+      <div class="dd-item" data-action="undo">Undo<span class="dd-sc">Ctrl+Z</span></div>
+      <div class="dd-sep"></div>
+      <div class="dd-item" data-action="cut">Cut<span class="dd-sc">Ctrl+X</span></div>
+      <div class="dd-item" data-action="copy">Copy<span class="dd-sc">Ctrl+C</span></div>
+      <div class="dd-item" data-action="paste">Paste<span class="dd-sc">Ctrl+V</span></div>
+      <div class="dd-item" data-action="delete">Delete<span class="dd-sc">Del</span></div>
+      <div class="dd-sep"></div>
+      <div class="dd-item" data-action="find">Find...<span class="dd-sc">Ctrl+F</span></div>
+      <div class="dd-item" data-action="findnext">Find Next<span class="dd-sc">F3</span></div>
+      <div class="dd-item" data-action="replace">Replace...<span class="dd-sc">Ctrl+H</span></div>
+      <div class="dd-sep"></div>
+      <div class="dd-item" data-action="selectall">Select All<span class="dd-sc">Ctrl+A</span></div>
+      <div class="dd-item" data-action="datetime">Time/Date<span class="dd-sc">F5</span></div>
+    </div>
+  </div>
+
+  <div class="mb-item" data-menu="format">Format
+    <div class="mb-drop">
+      <div class="dd-item checked" id="opt-wordwrap" data-action="wordwrap">
+        <span class="dd-check">✓</span>Word Wrap
+      </div>
+      <div class="dd-item" data-action="font">Font...</div>
+    </div>
+  </div>
+
+  <div class="mb-item" data-menu="view">View
+    <div class="mb-drop">
+      <div class="dd-item" style="position:relative;">
+        Zoom<span class="dd-arrow">&#9658;</span>
+        <div class="sub-menu">
+          <div class="dd-item" data-action="zoomin">Zoom In<span class="dd-sc">Ctrl++</span></div>
+          <div class="dd-item" data-action="zoomout">Zoom Out<span class="dd-sc">Ctrl+-</span></div>
+          <div class="dd-item" data-action="zoomreset">Restore Default<span class="dd-sc">Ctrl+0</span></div>
+        </div>
+      </div>
+      <div class="dd-sep"></div>
+      <div class="dd-item checked" id="opt-statusbar" data-action="statusbar">
+        <span class="dd-check">✓</span>Status Bar
+      </div>
+    </div>
+  </div>
+
+  <div class="mb-item" data-menu="help">Help
+    <div class="mb-drop">
+      <div class="dd-item" data-action="about">About Notepad</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- EDITOR -->
+<div class="editor-wrap">
+  <textarea id="editor" spellcheck="false" autocomplete="off" autocorrect="off"></textarea>
+</div>
+
+<!-- STATUS BAR -->
+<div class="statusbar" id="statusbar">
+  <div class="sb-cell" id="sb-pos">Ln 1, Col 1</div>
+  <div class="sb-cell" id="sb-zoom">100%</div>
+  <div class="sb-cell">Windows (CRLF)</div>
+  <div class="sb-cell">UTF-8</div>
+</div>
+
+<!-- FIND DIALOG -->
+<div class="dialog-overlay" id="find-overlay">
+  <div class="dialog" id="find-dialog">
+    <div class="dialog-titlebar" id="find-title">Find <span class="dialog-close" onclick="closeDialog('find-overlay')">&#10005;</span></div>
+    <div class="dialog-body">
+      <div class="dialog-row"><label>Find what:</label><input type="text" id="find-input" autocomplete="off"></div>
+    </div>
+    <div class="dialog-footer">
+      <button class="d-btn primary" onclick="doFindNext()">Find Next</button>
+      <button class="d-btn" onclick="closeDialog('find-overlay')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- REPLACE DIALOG -->
+<div class="dialog-overlay" id="replace-overlay">
+  <div class="dialog" id="replace-dialog">
+    <div class="dialog-titlebar" id="replace-title">Replace <span class="dialog-close" onclick="closeDialog('replace-overlay')">&#10005;</span></div>
+    <div class="dialog-body">
+      <div class="dialog-row"><label>Find what:</label><input type="text" id="rep-find" autocomplete="off"></div>
+      <div class="dialog-row"><label>Replace with:</label><input type="text" id="rep-with" autocomplete="off"></div>
+    </div>
+    <div class="dialog-footer">
+      <button class="d-btn" onclick="doRepFindNext()">Find Next</button>
+      <button class="d-btn" onclick="doReplaceOne()">Replace</button>
+      <button class="d-btn primary" onclick="doReplaceAll()">Replace All</button>
+      <button class="d-btn" onclick="closeDialog('replace-overlay')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const editor = document.getElementById('editor');
+const fs = window.parent?.fs;
+
+let currentFile = '';
+let isDirty = false;
+let wordWrap = false;
+let zoomPct = 100;
+let activeMenu = null;
+
+// ────────────────────────────────────────
+// MENU SYSTEM
+// ────────────────────────────────────────
+const menubar = document.getElementById('menubar');
+
+menubar.addEventListener('mousedown', e => {
+  const item = e.target.closest('.mb-item');
+  if (!item) return;
+  e.preventDefault();
+  if (activeMenu === item) {
+    closeMenus();
+  } else {
+    openMenu(item);
+  }
+});
+
+// hover between menus while one is open
+menubar.addEventListener('mouseover', e => {
+  if (!activeMenu) return;
+  const item = e.target.closest('.mb-item');
+  if (item && item !== activeMenu) openMenu(item);
+});
+
+// click on dropdown items
+document.addEventListener('mousedown', e => {
+  const ddItem = e.target.closest('.dd-item[data-action]');
+  if (ddItem) {
+    e.preventDefault();
+    closeMenus();
+    handleAction(ddItem.dataset.action);
+    return;
+  }
+  // click outside menus
+  if (!e.target.closest('.mb-item')) closeMenus();
+});
+
+function openMenu(item) {
+  closeMenus();
+  item.classList.add('open');
+  activeMenu = item;
+}
+function closeMenus() {
+  document.querySelectorAll('.mb-item.open').forEach(m => m.classList.remove('open'));
+  activeMenu = null;
+}
+
+// ────────────────────────────────────────
+// ACTION HANDLER
+// ────────────────────────────────────────
+function handleAction(action) {
+  switch(action) {
+    case 'new':        cmdNew(); break;
+    case 'open':       cmdOpen(); break;
+    case 'save':       cmdSave(); break;
+    case 'saveas':     cmdSaveAs(); break;
+    case 'exit':       cmdExit(); break;
+    case 'undo':       editor.focus(); document.execCommand('undo'); break;
+    case 'cut':        cmdCut(); break;
+    case 'copy':       cmdCopy(); break;
+    case 'paste':      cmdPaste(); break;
+    case 'delete':     cmdDelete(); break;
+    case 'selectall':  editor.select(); break;
+    case 'find':       openDialog('find-overlay'); break;
+    case 'findnext':   doFindNext(); break;
+    case 'replace':    openDialog('replace-overlay'); break;
+    case 'datetime':   cmdDateTime(); break;
+    case 'wordwrap':   cmdWordWrap(); break;
+    case 'font':       alert('Font selection is not available in this version.'); break;
+    case 'zoomin':     cmdZoom(10); break;
+    case 'zoomout':    cmdZoom(-10); break;
+    case 'zoomreset':  cmdZoom(0); break;
+    case 'statusbar':  cmdStatusBar(); break;
+    case 'about':      alert('Notepad\nWindows 10 Web OS Edition\n\nSimple text editor with find/replace,\nword wrap, zoom, and status bar.'); break;
+  }
+}
+
+// ────────────────────────────────────────
+// FILE OPERATIONS
+// ────────────────────────────────────────
+function setTitle() {
+  const name = currentFile ? currentFile.split('/').pop() : 'Untitled';
+  const dirty = isDirty ? '*' : '';
+  document.title = dirty + name + ' - Notepad';
+  try {
+    const pid = window.frameElement?.dataset?.pid;
+    if (pid) {
+      const win = window.parent.document.querySelector(`.os-window[data-pid="${pid}"] .window-title`);
+      if (win) win.innerText = dirty + name + ' - Notepad';
+    }
+  } catch(e) {}
+}
+
+editor.addEventListener('input', () => {
+  isDirty = true;
+  setTitle();
+  updateStatus();
+});
+
+function askSave() {
+  if (!isDirty) return true;
+  const name = currentFile || 'Untitled';
+  const r = confirm(`Do you want to save changes to ${name}?`);
+  if (r) { cmdSave(); return true; }
+  return confirm('Discard changes?');
+}
+
+function cmdNew() {
+  if (!askSave()) return;
+  editor.value = '';
+  currentFile = '';
+  isDirty = false;
+  setTitle();
+  editor.focus();
+}
+
+async function cmdOpen() {
+  if (!askSave()) return;
+  const path = prompt('Open file path:', currentFile || 'Documents/file.txt');
+  if (!path) return;
+  if (!fs) return alert('Filesystem not available.');
+  const res = await fs.read(path);
+  if (res.success) {
+    editor.value = res.content;
+    currentFile = path;
+    isDirty = false;
+    setTitle();
+    updateStatus();
+  } else {
+    alert('Could not open file:\n' + (res.error || 'Unknown error'));
+  }
+  editor.focus();
+}
+
+async function cmdSave() {
+  if (!currentFile) { await cmdSaveAs(); return; }
+  if (!fs) return alert('Filesystem not available.');
+  const res = await fs.write(currentFile, editor.value);
+  if (res.success) { isDirty = false; setTitle(); }
+  else alert('Could not save file:\n' + (res.error || 'Unknown error'));
+}
+
+async function cmdSaveAs() {
+  const path = prompt('Save as:', currentFile || 'Documents/untitled.txt');
+  if (!path) return;
+  if (!fs) return alert('Filesystem not available.');
+  const res = await fs.write(path, editor.value);
+  if (res.success) { currentFile = path; isDirty = false; setTitle(); }
+  else alert('Could not save file:\n' + (res.error || 'Unknown error'));
+}
+
+function cmdExit() {
+  if (!askSave()) return;
+  try { window.parent.processManager.kill(window.frameElement.dataset.pid); } catch(e) {}
+}
+
+// ────────────────────────────────────────
+// EDIT OPERATIONS
+// ────────────────────────────────────────
+function cmdCut() {
+  const s = editor.selectionStart, e2 = editor.selectionEnd;
+  if (s === e2) return;
+  const sel = editor.value.slice(s, e2);
+  navigator.clipboard.writeText(sel).catch(()=>{});
+  insertAt(s, e2, '');
+}
+function cmdCopy() {
+  const sel = editor.value.slice(editor.selectionStart, editor.selectionEnd);
+  navigator.clipboard.writeText(sel).catch(()=>{});
+}
+async function cmdPaste() {
+  try {
+    const text = await navigator.clipboard.readText();
+    const s = editor.selectionStart, e2 = editor.selectionEnd;
+    insertAt(s, e2, text);
+  } catch(e) { editor.focus(); document.execCommand('paste'); }
+}
+function cmdDelete() {
+  const s = editor.selectionStart, e2 = editor.selectionEnd;
+  insertAt(s, e2, '');
+}
+function cmdDateTime() {
+  const s = editor.selectionStart, e2 = editor.selectionEnd;
+  insertAt(s, e2, new Date().toLocaleString());
+}
+function insertAt(start, end, text) {
+  const val = editor.value;
+  editor.value = val.slice(0, start) + text + val.slice(end);
+  editor.selectionStart = editor.selectionEnd = start + text.length;
+  isDirty = true;
+  setTitle();
+  updateStatus();
+}
+
+// ────────────────────────────────────────
+// FORMAT / VIEW
+// ────────────────────────────────────────
+function cmdWordWrap() {
+  wordWrap = !wordWrap;
+  editor.classList.toggle('wordwrap', wordWrap);
+  document.getElementById('opt-wordwrap').classList.toggle('checked', wordWrap);
+}
+
+function cmdZoom(delta) {
+  if (delta === 0) zoomPct = 100;
+  else zoomPct = Math.min(500, Math.max(10, zoomPct + delta));
+  const px = Math.round(14 * zoomPct / 100);
+  editor.style.fontSize = px + 'px';
+  editor.style.lineHeight = '1.5';
+  document.getElementById('sb-zoom').textContent = zoomPct + '%';
+}
+
+function cmdStatusBar() {
+  const sb = document.getElementById('statusbar');
+  const visible = sb.style.display !== 'none';
+  sb.style.display = visible ? 'none' : 'flex';
+  document.getElementById('opt-statusbar').classList.toggle('checked', !visible);
+}
+
+// ────────────────────────────────────────
+// STATUS BAR
+// ────────────────────────────────────────
+function updateStatus() {
+  const pre = editor.value.slice(0, editor.selectionStart);
+  const lines = pre.split('\n');
+  const ln = lines.length;
+  const col = lines[lines.length - 1].length + 1;
+  document.getElementById('sb-pos').textContent = `Ln ${ln}, Col ${col}`;
+}
+editor.addEventListener('click', updateStatus);
+editor.addEventListener('keyup', updateStatus);
+
+// ────────────────────────────────────────
+// FIND / REPLACE DIALOGS
+// ────────────────────────────────────────
+let findDir = 0; // tracks last found position
+
+function openDialog(id) {
+  closeMenus();
+  document.getElementById(id).classList.add('visible');
+  document.getElementById(id).style.display = 'block';
+  const inp = document.querySelector(`#${id} input`);
+  if (inp) { inp.focus(); inp.select(); }
+}
+function closeDialog(id) {
+  document.getElementById(id).style.display = 'none';
+  document.getElementById(id).classList.remove('visible');
+  editor.focus();
+}
+
+function doFindNext(fromEnd = false) {
+  const query = document.getElementById('find-input').value;
+  if (!query) return;
+  const text = editor.value;
+  const searchFrom = fromEnd ? 0 : editor.selectionEnd;
+  let idx = text.toLowerCase().indexOf(query.toLowerCase(), searchFrom);
+  if (idx === -1 && searchFrom > 0) idx = text.toLowerCase().indexOf(query.toLowerCase(), 0); // wrap
+  if (idx === -1) { alert(`Cannot find "${query}"`); return; }
+  editor.focus();
+  editor.setSelectionRange(idx, idx + query.length);
+  scrollEditorToSelection();
+}
+
+function doRepFindNext() {
+  const q = document.getElementById('rep-find').value;
+  document.getElementById('find-input').value = q;
+  doFindNext();
+}
+
+function doReplaceOne() {
+  const q = document.getElementById('rep-find').value;
+  const r = document.getElementById('rep-with').value;
+  if (!q) return;
+  const s = editor.selectionStart, e2 = editor.selectionEnd;
+  const sel = editor.value.slice(s, e2);
+  if (sel.toLowerCase() === q.toLowerCase()) {
+    insertAt(s, e2, r);
+  }
+  doFindNext();
+}
+
+function doReplaceAll() {
+  const q = document.getElementById('rep-find').value;
+  const r = document.getElementById('rep-with').value;
+  if (!q) return;
+  const regex = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+  const count = (editor.value.match(regex) || []).length;
+  editor.value = editor.value.replace(regex, r);
+  isDirty = true; setTitle();
+  alert(`${count} replacement(s) made.`);
+}
+
+function scrollEditorToSelection() {
+  const text = editor.value.slice(0, editor.selectionStart);
+  const lines = text.split('\n').length;
+  const lineH = parseInt(getComputedStyle(editor).lineHeight) || 21;
+  editor.scrollTop = (lines - 3) * lineH;
+}
+
+// Draggable dialogs
+['find-dialog','replace-dialog'].forEach(id => {
+  const dlg = document.getElementById(id);
+  const title = dlg.querySelector('.dialog-titlebar');
+  let ox=0,oy=0,sx=0,sy=0,dragging=false;
+  title.addEventListener('mousedown', e => {
+    if(e.target.classList.contains('dialog-close')) return;
+    dragging=true;
+    const rect = dlg.getBoundingClientRect();
+    ox=e.clientX-rect.left; oy=e.clientY-rect.top;
+    dlg.style.left=rect.left+'px'; dlg.style.top=rect.top+'px';
+    dlg.style.margin='0';
+    e.preventDefault();
+  });
+  document.addEventListener('mousemove',e=>{
+    if(!dragging) return;
+    dlg.style.left=(e.clientX-ox)+'px';
+    dlg.style.top=(e.clientY-oy)+'px';
+  });
+  document.addEventListener('mouseup',()=>dragging=false);
+});
+
+// ────────────────────────────────────────
+// KEYBOARD SHORTCUTS
+// ────────────────────────────────────────
+window.addEventListener('keydown', e => {
+  if (e.ctrlKey) {
+    switch(e.key.toLowerCase()) {
+      case 'n': e.preventDefault(); cmdNew(); break;
+      case 'o': e.preventDefault(); cmdOpen(); break;
+      case 's': e.preventDefault(); cmdSave(); break;
+      case 'f': e.preventDefault(); openDialog('find-overlay'); break;
+      case 'h': e.preventDefault(); openDialog('replace-overlay'); break;
+      case '+':
+      case '=': e.preventDefault(); cmdZoom(10); break;
+      case '-': e.preventDefault(); cmdZoom(-10); break;
+      case '0': e.preventDefault(); cmdZoom(0); break;
+    }
+  }
+  if (e.key === 'F3') { e.preventDefault(); doFindNext(); }
+  if (e.key === 'F5') { e.preventDefault(); cmdDateTime(); }
+  if (e.key === 'Escape') {
+    closeDialog('find-overlay');
+    closeDialog('replace-overlay');
+    closeMenus();
+  }
+});
+
+// ────────────────────────────────────────
+// INIT
+// ────────────────────────────────────────
+(async () => {
+  // Check if launched with a file path
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const p = params.get('path');
+    if (p && fs) {
+      const res = await fs.read(p);
+      if (res.success) {
+        editor.value = res.content;
+        currentFile = p;
+        isDirty = false;
+        setTitle();
+        updateStatus();
+      }
+    }
+  } catch(e) {}
+  editor.focus();
+})();
+</script>
+</body>
+</html>

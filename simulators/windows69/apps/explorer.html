@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>File Explorer</title>
+    <link rel="stylesheet" href="../css/fontawesome/css/all.min.css">
+    <style>
+        body, html { margin: 0; padding: 0; height: 100%; font-family: 'Segoe UI', sans-serif; display: flex; flex-direction: column; background: white; user-select: none; }
+        .toolbar { height: 40px; background: #f3f3f3; border-bottom: 1px solid #ddd; display: flex; align-items: center; padding: 0 10px; gap: 10px; }
+        .btn-toolbar { width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; cursor: pointer; border-radius: 3px; color: #555; }
+        .btn-toolbar:hover { background: #e0e0e0; }
+        .address-bar { flex: 1; display: flex; align-items: center; background: white; border: 1px solid #ccc; height: 28px; padding: 0 10px; font-size: 0.9rem; }
+        .main-container { flex: 1; display: flex; overflow: hidden; }
+        .sidebar { width: 200px; background: #f9f9f9; border-right: 1px solid #ddd; padding: 10px 0; overflow-y: auto; }
+        .sidebar-item { padding: 5px 15px; font-size: 0.9rem; cursor: pointer; display: flex; align-items: center; color: #333; }
+        .sidebar-item:hover { background: #e8e8e8; }
+        .sidebar-item i { margin-right: 10px; width: 16px; text-align: center; color: #666; }
+        .sidebar-item.active { background: #cce8ff; }
+        
+        .content { flex: 1; overflow-y: auto; padding: 10px; display: flex; flex-wrap: wrap; align-content: flex-start; gap: 10px; }
+        .file-item { width: 90px; height: 100px; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; text-align: center; cursor: pointer; border: 1px solid transparent; padding: 5px; border-radius: 3px; }
+        .file-item:hover { background: #e5f3ff; border-color: #cce8ff; }
+        .file-item.selected { background: #cce8ff; border-color: #99d1ff; }
+        .file-item i { font-size: 3rem; margin-bottom: 5px; color: #ffca28; filter: drop-shadow(0px 2px 4px rgba(255,202,40,0.4)); }
+        .file-item.text i { color: #80deea; filter: drop-shadow(0px 2px 4px rgba(128,222,234,0.4)); }
+        .file-name { font-size: 0.8rem; line-height: 1.2; word-wrap: break-word; width: 100%; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    </style>
+</head>
+<body>
+    <div class="toolbar">
+        <div class="btn-toolbar" id="btn-up" title="Up"><i class="fas fa-arrow-up" style="color: #00e676; filter: drop-shadow(0px 2px 4px rgba(0,230,118,0.4));"></i></div>
+        <div class="btn-toolbar" id="btn-refresh" title="Refresh"><i class="fas fa-sync-alt" style="color: #d500f9; filter: drop-shadow(0px 2px 4px rgba(213,0,249,0.4));"></i></div>
+        <div class="address-bar">
+            <span>C:\Users\Admin\</span><span id="current-path-display"></span>
+        </div>
+        <div class="btn-toolbar" id="btn-delete" title="Delete"><i class="fas fa-trash" style="color: #ff1744; filter: drop-shadow(0px 2px 4px rgba(255,23,68,0.4));"></i></div>
+    </div>
+    <div class="main-container">
+        <div class="sidebar">
+            <div class="sidebar-item active" data-path=""><i class="fas fa-desktop" style="color: #00e5ff; filter: drop-shadow(0px 2px 4px rgba(0,229,255,0.4));"></i> Desktop</div>
+            <div class="sidebar-item" data-path="Documents"><i class="fas fa-file-alt" style="color: #ffea00; filter: drop-shadow(0px 2px 4px rgba(255,234,0,0.4));"></i> Documents</div>
+            <div class="sidebar-item" data-path="Downloads"><i class="fas fa-download" style="color: #00b0ff; filter: drop-shadow(0px 2px 4px rgba(0,176,255,0.4));"></i> Downloads</div>
+            <div class="sidebar-item" data-path="Pictures"><i class="fas fa-image" style="color: #00e676; filter: drop-shadow(0px 2px 4px rgba(0,230,118,0.4));"></i> Pictures</div>
+        </div>
+        <div class="content" id="file-grid">
+            <!-- Files loaded via JS -->
+        </div>
+    </div>
+    
+    <script>
+        const fs = window.parent.fs;
+        const processManager = window.parent.processManager;
+        const windowManager = window.parent.windowManager;
+        
+        let currentPath = '';
+        let selectedFile = null;
+        
+        const fileGrid = document.getElementById('file-grid');
+        const pathDisplay = document.getElementById('current-path-display');
+        
+        async function loadFolder(path) {
+            currentPath = path;
+            pathDisplay.innerText = path ? `${path.replace(/\//g, '\\')}\\` : '';
+            selectedFile = null;
+            
+            // Sync sidebar active state
+            const sidebarItems = document.querySelectorAll('.sidebar-item');
+            sidebarItems.forEach(n => n.classList.remove('active'));
+            // Find an exact match for the path
+            const exactMatch = document.querySelector(`.sidebar-item[data-path="${path}"]`);
+            if (exactMatch) {
+                exactMatch.classList.add('active');
+            } else {
+                // If no exact match (like inside a subfolder), highlight the root or the matching parent
+                // For simplicity, we highlight nothing or the closest parent.
+                // Let's find the closest parent in the sidebar
+                let closestMatch = null;
+                sidebarItems.forEach(n => {
+                    const p = n.dataset.path;
+                    if (p && path.startsWith(p + '/')) {
+                        closestMatch = n;
+                    }
+                });
+                if (closestMatch) closestMatch.classList.add('active');
+                else {
+                    // Default to Desktop if path is empty or no match
+                    const desktopItem = document.querySelector(`.sidebar-item[data-path=""]`);
+                    if(desktopItem && !path) desktopItem.classList.add('active');
+                }
+            }
+            
+            fileGrid.innerHTML = 'Loading...';
+            const res = await fs.list(path);
+            fileGrid.innerHTML = '';
+            
+            if(res.success) {
+                if (res.files.length === 0) {
+                    fileGrid.innerHTML = '<span style="color:#888; margin-left:10px;">This folder is empty.</span>';
+                    return;
+                }
+                
+                res.files.forEach(f => {
+                    const el = document.createElement('div');
+                    el.className = 'file-item';
+                    
+                    let iconObj = 'fa-folder';
+                    if (!f.is_dir) {
+                        el.classList.add('text');
+                        iconObj = f.name.endsWith('.txt') ? 'fa-file-alt' : 'fa-file';
+                    }
+                    
+                    el.innerHTML = `<i class="fas ${iconObj}"></i><div class="file-name">${f.name}</div>`;
+                    
+                    el.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        document.querySelectorAll('.file-item').forEach(n => n.classList.remove('selected'));
+                        el.classList.add('selected');
+                        selectedFile = f;
+                    });
+                    
+                    el.addEventListener('dblclick', () => {
+                        if (f.is_dir) {
+                            loadFolder(currentPath ? currentPath + '/' + f.name : f.name);
+                        } else {
+                            // Open in notepad by default
+                            windowManager.createWindow({
+                                name: 'Notepad - ' + f.name,
+                                icon: 'fas fa-file-alt',
+                                url: 'apps/notepad.html'
+                            });
+                        }
+                    });
+                    
+                    fileGrid.appendChild(el);
+                });
+            } else {
+                fileGrid.innerHTML = '<span style="color:red; margin-left:10px;">Error: ' + res.error + '</span>';
+            }
+        }
+        
+        // Toolbar actions
+        document.getElementById('btn-refresh').addEventListener('click', () => loadFolder(currentPath));
+        document.getElementById('btn-up').addEventListener('click', () => {
+            if(!currentPath) return;
+            const parts = currentPath.split('/');
+            parts.pop();
+            loadFolder(parts.join('/'));
+        });
+        
+        document.getElementById('btn-delete').addEventListener('click', async () => {
+            if(!selectedFile) return alert('Select a file to delete.');
+            if(confirm(`Are you sure you want to delete ${selectedFile.name}?`)) {
+                const target = currentPath ? currentPath + '/' + selectedFile.name : selectedFile.name;
+                const r = await fs.delete(target);
+                if(r.success) loadFolder(currentPath);
+                else alert('Delete failed: ' + r.error);
+            }
+        });
+        
+        // Sidebar actions
+        document.querySelectorAll('.sidebar-item').forEach(item => {
+            item.addEventListener('click', (e) => {
+                document.querySelectorAll('.sidebar-item').forEach(n => n.classList.remove('active'));
+                e.currentTarget.classList.add('active');
+                loadFolder(e.currentTarget.dataset.path);
+            });
+        });
+        
+        // Deselect on empty click
+        fileGrid.addEventListener('click', () => {
+            document.querySelectorAll('.file-item').forEach(n => n.classList.remove('selected'));
+            selectedFile = null;
+        });
+        
+        // Initial load
+        loadFolder('');
+    </script>
+</body>
+</html>

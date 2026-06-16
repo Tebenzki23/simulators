@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Task Manager</title>
+    <link rel="stylesheet" href="../css/fontawesome/css/all.min.css">
+    <style>
+        :root {
+            --win-blue: #0078D7;
+            --win-gray: #f0f0f0;
+            --border: #ccc;
+            --text: #333;
+        }
+        body, html { margin: 0; padding: 0; height: 100%; font-family: 'Segoe UI', Tahoma, sans-serif; background: white; color: var(--text); overflow: hidden; display: flex; flex-direction: column; }
+        
+        /* Menu Bar */
+        .menu-bar { background: white; display: flex; font-size: 12px; border-bottom: 1px solid var(--border); }
+        .menu-item { padding: 4px 10px; cursor: default; }
+        .menu-item:hover { background: #e5f3ff; }
+
+        /* Tabs */
+        .tabs { background: white; display: flex; border-bottom: 1px solid var(--border); user-select: none; }
+        .tab { padding: 6px 15px; cursor: default; font-size: 13px; position: relative; border-right: 1px solid transparent; }
+        .tab:hover { background: #e5f3ff; }
+        .tab.active { background: white; color: var(--win-blue); }
+        .tab.active::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 3px; background: var(--win-blue); }
+
+        /* Content Area */
+        .content-area { flex: 1; overflow: auto; position: relative; }
+        .tab-content { display: none; height: 100%; }
+        .tab-content.active { display: block; }
+
+        /* Table Style */
+        table { width: 100%; border-collapse: collapse; font-size: 12px; table-layout: fixed; }
+        th { text-align: left; padding: 8px 10px; background: #f9f9f9; font-weight: normal; border-bottom: 1px solid var(--border); border-right: 1px solid #ddd; position: sticky; top: 0; z-index: 10; }
+        td { padding: 4px 10px; border-bottom: 1px solid #eee; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-right: 1px solid #eee; }
+        tr:hover { background: #e5f3ff; }
+        tr.selected { background: #cce8ff; }
+
+        .res-col { width: 80px; text-align: right; }
+        .name-col { width: 250px; }
+        
+        /* Performance Tab */
+        .performance-container { display: flex; height: 100%; }
+        .sidebar { width: 180px; border-right: 1px solid var(--border); background: #f2f2f2; overflow-y: auto; }
+        .sidebar-item { padding: 10px; cursor: default; display: flex; flex-direction: column; border-bottom: 1px solid #ddd; }
+        .sidebar-item:hover { background: #e5f3ff; }
+        .sidebar-item.active { background: white; border-right: 3px solid var(--win-blue); }
+        .sidebar-item .title { font-size: 13px; font-weight: 600; }
+        .sidebar-item .value { font-size: 11px; color: #666; }
+
+        .graph-area { flex: 1; padding: 20px; display: flex; flex-direction: column; background: white; }
+        .graph-header { margin-bottom: 20px; }
+        .graph-header h2 { margin: 0; font-weight: normal; color: var(--win-blue); }
+        .graph-box { flex: 1; border: 1px solid #ccc; position: relative; background: #fff; margin-bottom: 10px; overflow: hidden; }
+        .graph-canvas { width: 100%; height: 100%; }
+        
+        /* Footer */
+        .footer { padding: 10px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; background: white; }
+        .btn { padding: 4px 15px; font-size: 12px; border: 1px solid #bbb; background: #f3f3f3; cursor: default; }
+        .btn:hover { background: #e1e1e1; border-color: #999; }
+        .btn.primary { background: #0078d7; color: white; border-color: #005a9e; opacity: 0.6; pointer-events: none; }
+        .btn.primary.active { opacity: 1; pointer-events: all; }
+
+        /* Simple View */
+        body.simple .tabs, body.simple .menu-bar, body.simple th:not(.name-col), body.simple td:not(.name-col) { display: none; }
+        body.simple .content-area { padding: 10px; }
+        body.simple .file-item { display: flex; align-items: center; padding: 5px; }
+        body.simple .file-item i { margin-right: 10px; color: var(--win-blue); }
+
+    </style>
+</head>
+<body>
+
+    <div class="menu-bar">
+        <div class="menu-item">File</div>
+        <div class="menu-item">Options</div>
+        <div class="menu-item">View</div>
+    </div>
+
+    <div class="tabs">
+        <div class="tab active" data-target="processes">Processes</div>
+        <div class="tab" data-target="performance">Performance</div>
+        <div class="tab" data-target="history">App history</div>
+        <div class="tab" data-target="startup">Startup</div>
+        <div class="tab" data-target="users">Users</div>
+        <div class="tab" data-target="details">Details</div>
+        <div class="tab" data-target="services">Services</div>
+    </div>
+
+    <div class="content-area">
+        <!-- Processes -->
+        <div id="processes" class="tab-content active">
+            <table>
+                <thead>
+                    <tr>
+                        <th class="name-col">Name</th>
+                        <th class="res-col">Status</th>
+                        <th class="res-col">CPU</th>
+                        <th class="res-col">Memory</th>
+                        <th class="res-col">Disk</th>
+                        <th class="res-col">Network</th>
+                    </tr>
+                </thead>
+                <tbody id="proc-body"></tbody>
+            </table>
+        </div>
+
+        <!-- Performance -->
+        <div id="performance" class="tab-content">
+            <div class="performance-container">
+                <div class="sidebar" id="perf-sidebar">
+                    <div class="sidebar-item active" data-metric="cpu">
+                        <span class="title">CPU</span>
+                        <span class="value" id="side-cpu">0%</span>
+                    </div>
+                    <div class="sidebar-item" data-metric="mem">
+                        <span class="title">Memory</span>
+                        <span class="value" id="side-mem">0%</span>
+                    </div>
+                    <div class="sidebar-item" data-metric="disk">
+                        <span class="title">Disk 0 (C:)</span>
+                        <span class="value" id="side-disk">0%</span>
+                    </div>
+                    <div class="sidebar-item" data-metric="net">
+                        <span class="title">Ethernet</span>
+                        <span class="value" id="side-net">0 Kbps</span>
+                    </div>
+                </div>
+                <div class="graph-area">
+                    <div class="graph-header">
+                        <h2 id="graph-title">CPU</h2>
+                        <div id="graph-subtitle">Intel(R) Core(TM) i7-10700K CPU @ 3.80GHz</div>
+                    </div>
+                    <div class="graph-box">
+                        <canvas id="perf-canvas" class="graph-canvas"></canvas>
+                    </div>
+                    <div style="font-size:11px;color:#666;display:flex;justify-content:space-between;">
+                        <span>% Utilization over 60 seconds</span>
+                        <span>100%</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- History -->
+        <div id="history" class="tab-content">
+             <table>
+                <thead>
+                    <tr>
+                        <th class="name-col">Name</th>
+                        <th class="res-col">CPU time</th>
+                        <th class="res-col">Network</th>
+                        <th class="res-col">Metered net</th>
+                        <th class="res-col">Tile updates</th>
+                    </tr>
+                </thead>
+                <tbody id="hist-body"></tbody>
+            </table>
+        </div>
+
+        <!-- Startup -->
+        <div id="startup" class="tab-content">
+            <table>
+                <thead>
+                    <tr>
+                        <th class="name-col">Name</th>
+                        <th class="res-col">Publisher</th>
+                        <th class="res-col">Status</th>
+                        <th class="res-col">Startup impact</th>
+                    </tr>
+                </thead>
+                <tbody id="start-body"></tbody>
+            </table>
+        </div>
+
+        <!-- Users -->
+        <div id="users" class="tab-content">
+            <table>
+                <thead>
+                    <tr>
+                        <th class="name-col">User</th>
+                        <th class="res-col">ID</th>
+                        <th class="res-col">Status</th>
+                        <th class="res-col">CPU</th>
+                        <th class="res-col">Memory</th>
+                    </tr>
+                </thead>
+                <tbody id="user-body"></tbody>
+            </table>
+        </div>
+
+        <!-- Details -->
+        <div id="details" class="tab-content">
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width:150px">Name</th>
+                        <th style="width:60px">PID</th>
+                        <th style="width:80px">Status</th>
+                        <th style="width:100px">User name</th>
+                        <th style="width:60px">CPU</th>
+                        <th style="width:80px">Memory</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody id="det-body"></tbody>
+            </table>
+        </div>
+
+        <!-- Services -->
+        <div id="services" class="tab-content">
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width:150px">Name</th>
+                        <th style="width:60px">PID</th>
+                        <th style="width:200px">Description</th>
+                        <th style="width:80px">Status</th>
+                        <th>Group</th>
+                    </tr>
+                </thead>
+                <tbody id="serv-body"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="footer">
+        <button class="btn" id="btn-toggle-view">More details</button>
+        <button class="btn primary" id="btn-end-task">End task</button>
+    </div>
+
+    <script>
+        const pm = window.parent.processManager;
+        let selectedPid = null;
+        let currentTab = 'processes';
+        let currentMetric = 'cpu';
+        let simpleView = false;
+
+        // Tab Switching
+        document.querySelectorAll('.tab').forEach(t => {
+            t.addEventListener('click', () => {
+                document.querySelectorAll('.tab, .tab-content').forEach(el => el.classList.remove('active'));
+                t.classList.add('active');
+                const target = t.dataset.target;
+                document.getElementById(target).classList.add('active');
+                currentTab = target;
+                updateView();
+            });
+        });
+
+        // Metric Switching
+        document.querySelectorAll('.sidebar-item').forEach(item => {
+            item.addEventListener('click', () => {
+                document.querySelectorAll('.sidebar-item').forEach(i => i.classList.remove('active'));
+                item.classList.add('active');
+                currentMetric = item.dataset.metric;
+                document.getElementById('graph-title').innerText = currentMetric.toUpperCase();
+                // Update graph immediately
+                drawGraph();
+            });
+        });
+
+        // End Task
+        document.getElementById('btn-end-task').addEventListener('click', () => {
+            if (selectedPid) {
+                pm.killProcess(selectedPid);
+                selectedPid = null;
+                updateView();
+            }
+        });
+
+        // Toggle View
+        document.getElementById('btn-toggle-view').addEventListener('click', (e) => {
+            simpleView = !simpleView;
+            document.body.classList.toggle('simple', simpleView);
+            e.target.innerText = simpleView ? 'More details' : 'Fewer details';
+        });
+
+        function updateView() {
+            const processes = pm.getProcesses();
+            const stats = pm.getStats();
+            
+            // Processes Tab
+            const procBody = document.getElementById('proc-body');
+            procBody.innerHTML = '';
+            processes.forEach(p => {
+                const tr = document.createElement('tr');
+                if (p.pid === selectedPid) tr.classList.add('selected');
+                tr.innerHTML = `
+                    <td class="name-col"><i class="${p.icon}" style="margin-right:8px;color:#0078d7"></i>${p.name}</td>
+                    <td class="res-col">${p.status}</td>
+                    <td class="res-col">${p.cpu}%</td>
+                    <td class="res-col">${p.ram.toFixed(1)} MB</td>
+                    <td class="res-col">${p.disk} MB/s</td>
+                    <td class="res-col">${p.net} Mbps</td>
+                `;
+                tr.addEventListener('click', () => {
+                    selectedPid = p.pid;
+                    document.querySelectorAll('tr').forEach(r => r.classList.remove('selected'));
+                    tr.classList.add('selected');
+                    document.getElementById('btn-end-task').classList.add('active');
+                });
+                procBody.appendChild(tr);
+            });
+
+            // Performance Tab Sidebar
+            document.getElementById('side-cpu').innerText = stats.cpu + '%';
+            document.getElementById('side-mem').innerText = stats.mem + '%';
+            document.getElementById('side-disk').innerText = stats.disk + '%';
+            document.getElementById('side-net').innerText = stats.net + ' Kbps';
+
+            // Details Tab
+            if (currentTab === 'details') {
+                const detBody = document.getElementById('det-body');
+                detBody.innerHTML = '';
+                processes.forEach(p => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${p.name}</td>
+                        <td>${p.pid}</td>
+                        <td>${p.status}</td>
+                        <td>${p.user}</td>
+                        <td>${p.cpu}%</td>
+                        <td>${Math.floor(p.ram)} K</td>
+                        <td>Application</td>
+                    `;
+                    detBody.appendChild(tr);
+                });
+            }
+
+            // Startup Tab
+            if (currentTab === 'startup') {
+                const startBody = document.getElementById('start-body');
+                startBody.innerHTML = '';
+                pm.getStartupItems().forEach(item => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td class="name-col">${item.name}</td>
+                        <td class="res-col">Microsoft</td>
+                        <td class="res-col">${item.status}</td>
+                        <td class="res-col">${item.impact}</td>
+                    `;
+                    startBody.appendChild(tr);
+                });
+            }
+
+            // Services Tab
+            if (currentTab === 'services') {
+                const servBody = document.getElementById('serv-body');
+                servBody.innerHTML = '';
+                pm.getServices().forEach(s => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${s.name}</td>
+                        <td>${s.status === 'Running' ? 450 + Math.floor(Math.random()*100) : ''}</td>
+                        <td>${s.description}</td>
+                        <td>${s.status}</td>
+                        <td>${s.group}</td>
+                    `;
+                    servBody.appendChild(tr);
+                });
+            }
+
+            // Users Tab
+            if (currentTab === 'users') {
+                const userBody = document.getElementById('user-body');
+                userBody.innerHTML = '';
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="name-col">Administrator</td>
+                    <td class="res-col">1</td>
+                    <td class="res-col">Active</td>
+                    <td class="res-col">${stats.cpu}%</td>
+                    <td class="res-col">${stats.mem}%</td>
+                `;
+                userBody.appendChild(tr);
+            }
+
+            drawGraph();
+        }
+
+        const canvas = document.getElementById('perf-canvas');
+        const ctx = canvas.getContext('2d');
+
+        function drawGraph() {
+            if (currentTab !== 'performance') return;
+            
+            const stats = pm.getStats();
+            const data = stats.history[currentMetric];
+            
+            // Resize canvas
+            canvas.width = canvas.offsetWidth;
+            canvas.height = canvas.offsetHeight;
+            
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw Grid
+            ctx.strokeStyle = '#eee';
+            ctx.lineWidth = 1;
+            for(let i=1; i<10; i++) {
+                let y = canvas.height * (i/10);
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(canvas.width, y);
+                ctx.stroke();
+            }
+            
+            // Draw Data
+            ctx.strokeStyle = '#0078d7';
+            ctx.fillStyle = 'rgba(0, 120, 215, 0.1)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            
+            const step = canvas.width / 59;
+            ctx.moveTo(0, canvas.height);
+            
+            data.forEach((val, i) => {
+                const x = i * step;
+                const y = canvas.height - (val / 100 * canvas.height);
+                ctx.lineTo(x, y);
+            });
+            
+            ctx.stroke();
+            ctx.lineTo((data.length - 1) * step, canvas.height);
+            ctx.fill();
+        }
+
+        setInterval(updateView, 1000);
+        updateView();
+
+    </script>
+</body>
+</html>

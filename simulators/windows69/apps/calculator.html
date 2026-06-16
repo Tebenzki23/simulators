@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Calculator</title>
+    <style>
+        body { margin: 0; display: flex; align-items: flex-start; justify-content: flex-start; background: #f3f3f3; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .calc { background: #e6e6e6; padding: 2px; height: 100vh; width: 100%; display: flex; flex-direction: column; }
+        .display { width: 100%; height: 80px; background: #e6e6e6; border: none; text-align: right; font-size: 3rem; padding: 10px; box-sizing: border-box; outline: none; margin-bottom: 2px; }
+        .buttons { display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px; flex: 1; }
+        button { font-size: 1.5rem; cursor: pointer; border: none; background: #fcfcfc; transition: background 0.1s; }
+        button:hover { background: #e0e0e0; }
+        button.op { background: #f0f0f0; }
+        button.op:hover { background: #dcdcdc; }
+        button.eq { background: #0078d7; color: white; }
+        button.eq:hover { background: #005a9e; }
+        button.num { font-weight: 500; }
+    </style>
+</head>
+<body>
+    <div class="calc">
+        <input type="text" class="display" id="display" value="0" disabled>
+        <div class="buttons">
+            <button onclick="clearDisplay()" class="op">C</button>
+            <button onclick="clearEntity()" class="op">CE</button>
+            <button onclick="backspace()" class="op">&larr;</button>
+            <button onclick="append('/')" class="op">&divide;</button>
+            <button onclick="append('7')" class="num">7</button>
+            <button onclick="append('8')" class="num">8</button>
+            <button onclick="append('9')" class="num">9</button>
+            <button onclick="append('*')" class="op">&times;</button>
+            <button onclick="append('4')" class="num">4</button>
+            <button onclick="append('5')" class="num">5</button>
+            <button onclick="append('6')" class="num">6</button>
+            <button onclick="append('-')" class="op">&minus;</button>
+            <button onclick="append('1')" class="num">1</button>
+            <button onclick="append('2')" class="num">2</button>
+            <button onclick="append('3')" class="num">3</button>
+            <button onclick="append('+')" class="op">&plus;</button>
+            <button onclick="append('0')" class="num" style="grid-column: span 2;">0</button>
+            <button onclick="append('.')" class="num">.</button>
+            <button onclick="calculate()" class="eq">=</button>
+        </div>
+    </div>
+    <script>
+        const display = document.getElementById('display');
+        let shouldClear = false;
+        
+        function append(val) { 
+            if(display.value === '0' || shouldClear || display.value === 'Error') {
+                display.value = val === '.' ? '0.' : val;
+                shouldClear = false;
+            } else {
+                display.value += val; 
+            }
+        }
+        function clearDisplay() { display.value = '0'; shouldClear = false; }
+        function clearEntity() { display.value = '0'; }
+        function backspace() {
+            if(shouldClear || display.value === 'Error') { display.value = '0'; return; }
+            display.value = display.value.slice(0, -1);
+            if(display.value === '' || display.value === '-') display.value = '0';
+        }
+        function calculate() {
+            try { 
+                let res = eval(display.value); 
+                // Round to avoid crazy floats
+                res = Math.round(res * 100000000) / 100000000;
+                display.value = res.toString(); 
+            } catch(e) { display.value = 'Error'; }
+            shouldClear = true;
+        }
+    </script>
+</body>
+</html>

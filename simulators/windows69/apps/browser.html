@@ -1,0 +1,1118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexus Browser</title>
+    <link rel="stylesheet" href="../css/fontawesome/css/all.min.css">
+    <style>
+        :root {
+            /* Light Theme */
+            --bg-color: #f3f3f3;
+            --surface-color: #ffffff;
+            --surface-hover: #e5e5e5;
+            --text-main: #202124;
+            --text-muted: #5f6368;
+            --accent-color: #1a73e8;
+            --border-color: #dadce0;
+            --omnibox-bg: #f1f3f4;
+            --omnibox-hover: #e8eaed;
+            --glass-bg: rgba(255, 255, 255, 0.85);
+            --incognito-bg: #202124;
+            --incognito-surface: #35363a;
+            --incognito-text: #f1f3f4;
+            --transition-speed: 0.2s;
+        }
+
+        body.incognito {
+            /* Dark / Incognito Theme */
+            --bg-color: #202124;
+            --surface-color: #35363a;
+            --surface-hover: #4a4b4e;
+            --text-main: #f1f3f4;
+            --text-muted: #9aa0a6;
+            --accent-color: #8ab4f8;
+            --border-color: #5f6368;
+            --omnibox-bg: #202124;
+            --omnibox-hover: #292a2d;
+            --glass-bg: rgba(53, 54, 58, 0.85);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            user-select: none;
+        }
+
+        body, html {
+            height: 100%;
+            overflow: hidden;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            transition: background-color var(--transition-speed), color var(--transition-speed);
+        }
+
+        #browser-app {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        /* TABS AREA */
+        .tab-strip {
+            display: flex;
+            align-items: flex-end;
+            background-color: var(--bg-color);
+            padding: 8px 8px 0 8px;
+            height: 40px;
+            gap: 4px;
+            position: relative;
+        }
+
+        .tab {
+            flex: 0 1 240px;
+            min-width: 50px;
+            height: 32px;
+            background-color: transparent;
+            border-radius: 8px 8px 0 0;
+            display: flex;
+            align-items: center;
+            padding: 0 10px;
+            cursor: pointer;
+            position: relative;
+            transition: background-color var(--transition-speed);
+            color: var(--text-muted);
+            border: 1px solid transparent;
+            border-bottom: none;
+        }
+
+        .tab:hover {
+            background-color: var(--surface-hover);
+        }
+
+        .tab.active {
+            background-color: var(--surface-color);
+            color: var(--text-main);
+            z-index: 2;
+        }
+
+        .tab.active::before, .tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            box-shadow: 0 4px 0 0 var(--surface-color);
+        }
+
+        .tab.active::before { left: -8px; }
+        .tab.active::after { right: -8px; }
+
+        .tab-icon {
+            width: 16px;
+            height: 16px;
+            margin-right: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+        }
+
+        .tab-title {
+            flex: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            font-size: 12px;
+        }
+
+        .tab-close {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            color: var(--text-muted);
+            opacity: 0;
+            transition: opacity 0.1s, background-color 0.1s;
+        }
+
+        .tab:hover .tab-close, .tab.active .tab-close {
+            opacity: 1;
+        }
+
+        .tab-close:hover {
+            background-color: var(--surface-hover);
+            color: var(--text-main);
+        }
+
+        .new-tab-btn {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            margin-bottom: 2px;
+            color: var(--text-muted);
+            transition: background-color var(--transition-speed);
+        }
+
+        .new-tab-btn:hover {
+            background-color: var(--surface-hover);
+            color: var(--text-main);
+        }
+
+        /* TOOLBAR */
+        .toolbar {
+            display: flex;
+            align-items: center;
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            padding: 6px 12px;
+            gap: 8px;
+            height: 44px;
+            position: relative;
+            z-index: 10;
+        }
+
+        .nav-btn {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: var(--text-muted);
+            transition: background-color var(--transition-speed), color var(--transition-speed);
+            font-size: 14px;
+        }
+
+        .nav-btn:hover {
+            background-color: var(--surface-hover);
+            color: var(--text-main);
+        }
+
+        .nav-btn.disabled {
+            opacity: 0.4;
+            pointer-events: none;
+        }
+
+        .omnibox-container {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            background-color: var(--omnibox-bg);
+            border-radius: 16px;
+            height: 32px;
+            padding: 0 12px;
+            border: 1px solid transparent;
+            transition: background-color var(--transition-speed), border-color var(--transition-speed), box-shadow var(--transition-speed);
+        }
+
+        .omnibox-container:hover {
+            background-color: var(--omnibox-hover);
+        }
+
+        .omnibox-container.focused {
+            background-color: var(--surface-color);
+            border-color: var(--accent-color);
+            box-shadow: 0 0 0 1px var(--accent-color);
+        }
+
+        .security-icon {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-right: 8px;
+            display: flex;
+            align-items: center;
+        }
+        .security-icon.secure { color: #0f9d58; }
+
+        #omnibox {
+            flex: 1;
+            border: none;
+            background: transparent;
+            color: var(--text-main);
+            font-size: 14px;
+            outline: none;
+            user-select: text;
+        }
+
+        .bookmark-btn {
+            font-size: 14px;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+
+        .bookmark-btn:hover { color: var(--text-main); }
+        .bookmark-btn.starred { color: #f4b400; }
+
+        /* BOOKMARKS BAR */
+        .bookmarks-bar {
+            display: flex;
+            align-items: center;
+            background-color: var(--surface-color);
+            padding: 0 12px;
+            height: 28px;
+            gap: 16px;
+            border-bottom: 1px solid var(--border-color);
+            display: none; /* hidden by default */
+        }
+        .bookmarks-bar.visible { display: flex; }
+
+        .bookmark-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            color: var(--text-muted);
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 12px;
+            transition: background-color var(--transition-speed);
+        }
+        .bookmark-item:hover {
+            background-color: var(--surface-hover);
+            color: var(--text-main);
+        }
+
+        /* CONTENT AREA */
+        .content-area {
+            flex: 1;
+            position: relative;
+            background-color: #fff; /* Frames are usually white */
+        }
+
+        .tab-pane {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: none;
+            flex-direction: column;
+        }
+
+        .tab-pane.active {
+            display: flex;
+        }
+
+        iframe {
+            flex: 1;
+            border: none;
+            background: #fff;
+        }
+
+        /* NEW TAB PAGE */
+        .new-tab-page {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background-color: var(--surface-color);
+            color: var(--text-main);
+        }
+
+        .ntp-logo {
+            font-size: 48px;
+            margin-bottom: 30px;
+            background: -webkit-linear-gradient(45deg, #4285f4, #34a853, #fbbc05, #ea4335);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1));
+        }
+
+        body.incognito .ntp-logo {
+            background: none;
+            -webkit-text-fill-color: #f1f3f4;
+            text-shadow: 0 0 10px rgba(255,255,255,0.2);
+        }
+
+        .ntp-search {
+            width: 100%;
+            max-width: 500px;
+            display: flex;
+            align-items: center;
+            background: var(--surface-hover);
+            border-radius: 24px;
+            padding: 10px 20px;
+            gap: 15px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            margin-bottom: 40px;
+            border: 1px solid var(--border-color);
+        }
+        
+        .ntp-search:hover { box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+
+        .ntp-search input {
+            flex: 1;
+            border: none;
+            background: transparent;
+            outline: none;
+            color: var(--text-main);
+            font-size: 16px;
+            user-select: text;
+        }
+
+        .ntp-shortcuts {
+            display: flex;
+            gap: 20px;
+        }
+
+        .shortcut {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            width: 80px;
+            padding: 15px 10px;
+            border-radius: 8px;
+            transition: background-color var(--transition-speed);
+        }
+
+        .shortcut:hover {
+            background-color: var(--surface-hover);
+        }
+
+        .shortcut-icon {
+            width: 48px;
+            height: 48px;
+            background-color: var(--surface-hover);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            color: var(--text-main);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .shortcut-title {
+            font-size: 12px;
+            color: var(--text-main);
+            text-align: center;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            width: 100%;
+        }
+
+        .incognito-notice {
+            display: none;
+            max-width: 600px;
+            text-align: center;
+            margin-top: 20px;
+        }
+        body.incognito .incognito-notice { display: block; }
+        body.incognito .ntp-search, body.incognito .ntp-shortcuts { display: none; }
+
+        /* MENUS & OVERLAYS */
+        .menu-dropdown {
+            position: absolute;
+            top: 50px;
+            right: 10px;
+            width: 300px;
+            background-color: var(--surface-color);
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            border: 1px solid var(--border-color);
+            display: none;
+            flex-direction: column;
+            z-index: 100;
+            padding: 8px 0;
+            color: var(--text-main);
+        }
+
+        .menu-dropdown.visible { display: flex; }
+
+        .menu-item {
+            display: flex;
+            align-items: center;
+            padding: 10px 16px;
+            gap: 12px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color var(--transition-speed);
+        }
+
+        .menu-item:hover { background-color: var(--surface-hover); }
+        .menu-divider { height: 1px; background-color: var(--border-color); margin: 8px 0; }
+        
+        .menu-item i { width: 20px; text-align: center; color: var(--text-muted); }
+
+        /* Dialog Overlays (Settings, Downloads, etc) */
+        .overlay {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5);
+            backdrop-filter: blur(3px);
+            z-index: 200;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+        .overlay.visible { display: flex; }
+
+        .dialog {
+            background-color: var(--surface-color);
+            width: 80%;
+            max-width: 600px;
+            height: 80%;
+            max-height: 500px;
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            animation: slideIn 0.2s ease-out;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .dialog-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .dialog-header h3 { margin: 0; font-size: 18px; color: var(--text-main); }
+        .dialog-close { cursor: pointer; color: var(--text-muted); }
+        .dialog-close:hover { color: var(--text-main); }
+        
+        .dialog-content {
+            padding: 20px;
+            flex: 1;
+            overflow-y: auto;
+            color: var(--text-main);
+        }
+
+        /* Mock Content Styling */
+        .mock-list { list-style: none; }
+        .mock-list li { padding: 12px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; }
+        .mock-btn { background: var(--accent-color); color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; }
+        
+        /* loader */
+        .loader {
+            width: 100%;
+            height: 2px;
+            background: var(--surface-color);
+            position: relative;
+            overflow: hidden;
+            display: none;
+        }
+        .loader.loading { display: block; }
+        .loader::after {
+            content: '';
+            position: absolute;
+            left: -50%;
+            height: 2px;
+            width: 50%;
+            background: var(--accent-color);
+            animation: loadingBar 1s linear infinite;
+        }
+        @keyframes loadingBar { 0% { left: -50%; } 100% { left: 100%; } }
+
+    </style>
+</head>
+<body>
+
+<div id="browser-app">
+    <!-- Tab Strip -->
+    <div class="tab-strip" id="tab-strip">
+        <!-- Tabs will be injected here -->
+        <div class="new-tab-btn" id="new-tab-btn" title="New Tab">
+            <i class="fas fa-plus"></i>
+        </div>
+    </div>
+
+    <!-- Toolbar -->
+    <div class="toolbar">
+        <div class="nav-btn disabled" id="btn-back" title="Click to go back"><i class="fas fa-arrow-left"></i></div>
+        <div class="nav-btn disabled" id="btn-fwd" title="Click to go forward"><i class="fas fa-arrow-right"></i></div>
+        <div class="nav-btn" id="btn-refresh" title="Reload page"><i class="fas fa-redo"></i></div>
+        <div class="nav-btn" id="btn-home" title="Home"><i class="fas fa-home"></i></div>
+        
+        <div class="omnibox-container" id="omnibox-container">
+            <div class="security-icon" id="security-icon"><i class="fas fa-info-circle"></i></div>
+            <input type="text" id="omnibox" placeholder="Search Google or type a URL" autocomplete="off" spellcheck="false">
+            <div class="bookmark-btn" id="bookmark-btn" title="Bookmark this tab"><i class="far fa-star"></i></div>
+        </div>
+
+        <div class="nav-btn" id="btn-extensions" title="Extensions"><i class="fas fa-puzzle-piece"></i></div>
+        <div class="nav-btn" id="btn-downloads" title="Downloads"><i class="fas fa-download"></i></div>
+        <div class="nav-btn" id="btn-menu" title="Customize and control Nexus"><i class="fas fa-ellipsis-v"></i></div>
+    </div>
+
+    <div class="loader" id="loader"></div>
+
+    <!-- Bookmarks Bar -->
+    <div class="bookmarks-bar visible" id="bookmarks-bar">
+        <!-- Bookmark items injected here -->
+    </div>
+
+    <!-- Content Area (Iframes) -->
+    <div class="content-area" id="content-area">
+        <!-- Tab panes injected here -->
+    </div>
+
+    <!-- Main Menu -->
+    <div class="menu-dropdown" id="main-menu">
+        <div class="menu-item" id="menu-new-tab"><i class="fas fa-plus"></i> New tab</div>
+        <div class="menu-item" id="menu-new-window"><i class="fas fa-window-maximize"></i> New window</div>
+        <div class="menu-item" id="menu-incognito"><i class="fas fa-user-secret"></i> New Incognito window</div>
+        <div class="menu-item" id="menu-proxy"><i class="fas fa-shield-alt" style="color: #0f9d58;"></i> <span id="proxy-text">Disable Proxy Mode</span></div>
+        <div class="menu-divider"></div>
+        <div class="menu-item" id="menu-history"><i class="fas fa-history"></i> History</div>
+        <div class="menu-item" id="menu-downloads"><i class="fas fa-download"></i> Downloads</div>
+        <div class="menu-item" id="menu-bookmarks"><i class="fas fa-bookmark"></i> Bookmarks</div>
+        <div class="menu-divider"></div>
+        <div class="menu-item" id="menu-sync"><i class="fas fa-sync"></i> Turn on sync...</div>
+        <div class="menu-item" id="menu-passwords"><i class="fas fa-key"></i> Passwords and autofill</div>
+        <div class="menu-item" id="menu-extensions"><i class="fas fa-puzzle-piece"></i> Extensions</div>
+        <div class="menu-divider"></div>
+        <div class="menu-item" id="menu-settings"><i class="fas fa-cog"></i> Settings</div>
+    </div>
+
+    <!-- Dialog Overlay -->
+    <div class="overlay" id="dialog-overlay">
+        <div class="dialog" id="dialog-box">
+            <div class="dialog-header">
+                <h3 id="dialog-title">Title</h3>
+                <div class="dialog-close" id="dialog-close"><i class="fas fa-times"></i></div>
+            </div>
+            <div class="dialog-content" id="dialog-content">
+                <!-- Content injected dynamically -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    /**
+     * Browser State & Core Logic
+     */
+    let tabs = [];
+    let activeTabId = null;
+    let tabCounter = 0;
+    let isIncognito = false;
+    let isProxyEnabled = true;
+    let bookmarks = [];
+
+    // DOM Elements
+    const els = {
+        tabStrip: document.getElementById('tab-strip'),
+        newTabBtn: document.getElementById('new-tab-btn'),
+        contentArea: document.getElementById('content-area'),
+        omnibox: document.getElementById('omnibox'),
+        omniboxContainer: document.getElementById('omnibox-container'),
+        btnBack: document.getElementById('btn-back'),
+        btnFwd: document.getElementById('btn-fwd'),
+        btnRefresh: document.getElementById('btn-refresh'),
+        btnHome: document.getElementById('btn-home'),
+        securityIcon: document.getElementById('security-icon'),
+        bookmarkBtn: document.getElementById('bookmark-btn'),
+        bookmarksBar: document.getElementById('bookmarks-bar'),
+        loader: document.getElementById('loader'),
+        
+        // Menu & Dialogs
+        btnMenu: document.getElementById('btn-menu'),
+        mainMenu: document.getElementById('main-menu'),
+        overlay: document.getElementById('dialog-overlay'),
+        dialogTitle: document.getElementById('dialog-title'),
+        dialogContent: document.getElementById('dialog-content'),
+        dialogClose: document.getElementById('dialog-close')
+    };
+
+    // Initialize
+    async function init() {
+        await loadBookmarks();
+        renderBookmarksBar();
+        createNewTab(); // Open first tab
+        setupEventListeners();
+    }
+
+    // --- Tab Management ---
+
+    function createNewTab(url = '') {
+        tabCounter++;
+        const tabId = 'tab-' + tabCounter;
+        
+        const newTab = {
+            id: tabId,
+            url: url || 'nexus://newtab',
+            title: url ? 'Loading...' : 'New Tab',
+            history: [],
+            historyIndex: -1,
+            isLoading: false
+        };
+        
+        if (url) {
+            newTab.history.push(url);
+            newTab.historyIndex = 0;
+        }
+
+        tabs.push(newTab);
+        
+        // Create Tab Element
+        const tabEl = document.createElement('div');
+        tabEl.className = 'tab';
+        tabEl.id = `ui-${tabId}`;
+        tabEl.innerHTML = `
+            <div class="tab-icon"><i class="${url ? 'fas fa-globe' : 'fab fa-chrome'}"></i></div>
+            <div class="tab-title">${newTab.title}</div>
+            <div class="tab-close" title="Close tab"><i class="fas fa-times"></i></div>
+        `;
+        
+        // Insert before the new tab button
+        els.tabStrip.insertBefore(tabEl, els.newTabBtn);
+
+        // Create Content Pane
+        const paneEl = document.createElement('div');
+        paneEl.className = 'tab-pane';
+        paneEl.id = `pane-${tabId}`;
+        
+        if (newTab.url === 'nexus://newtab') {
+            paneEl.innerHTML = createNewTabPageHTML();
+        } else {
+            paneEl.innerHTML = `<iframe src="${newTab.url}" sandbox="allow-same-origin allow-scripts allow-forms allow-popups"></iframe>`;
+        }
+        
+        els.contentArea.appendChild(paneEl);
+
+        // Events
+        tabEl.addEventListener('mousedown', (e) => {
+            if(e.button === 1) closeTab(tabId); // middle click close
+            else if(e.button === 0) switchToTab(tabId);
+        });
+        
+        tabEl.querySelector('.tab-close').addEventListener('click', (e) => {
+            e.stopPropagation();
+            closeTab(tabId);
+        });
+
+        switchToTab(tabId);
+        
+        // Focus omnibox on new tab
+        if(newTab.url === 'nexus://newtab') els.omnibox.focus();
+    }
+
+    function closeTab(tabId) {
+        const index = tabs.findIndex(t => t.id === tabId);
+        if (index === -1) return;
+
+        // Remove DOM
+        document.getElementById(`ui-${tabId}`).remove();
+        document.getElementById(`pane-${tabId}`).remove();
+
+        tabs.splice(index, 1);
+
+        if (tabs.length === 0) {
+            // Close browser (in this context, just make a new tab or close simulated window)
+            // For now, just make a new tab
+            createNewTab();
+        } else if (activeTabId === tabId) {
+            // Switch to adjacent tab
+            const newIndex = Math.min(index, tabs.length - 1);
+            switchToTab(tabs[newIndex].id);
+        }
+    }
+
+    function switchToTab(tabId) {
+        activeTabId = tabId;
+        const tabData = tabs.find(t => t.id === tabId);
+
+        // Update UI Tabs
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.getElementById(`ui-${tabId}`).classList.add('active');
+
+        // Update Panes
+        document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+        document.getElementById(`pane-${tabId}`).classList.add('active');
+
+        updateToolbarUI(tabData);
+    }
+
+    // --- Navigation Logic ---
+
+    function navigateTab(tabId, inputUrl) {
+        const tabData = tabs.find(t => t.id === tabId);
+        if(!tabData) return;
+
+        let finalUrl = inputUrl;
+        
+        // Simple heuristic for Search vs URL
+        const isUrl = /^((https?:\/\/)?[\w-]+(\.[\w-]+)+\.?(:\d+)?(\/\S*)?)$/i.test(inputUrl) || inputUrl.startsWith('nexus://');
+        
+        if (!isUrl) {
+            // Treat as search query
+            if (inputUrl.toLowerCase().startsWith('youtube ')) {
+                finalUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(inputUrl.substring(8).trim())}`;
+            } else if (inputUrl.toLowerCase().startsWith('yt ')) {
+                finalUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(inputUrl.substring(3).trim())}`;
+            } else {
+                finalUrl = `https://www.google.com/search?q=${encodeURIComponent(inputUrl)}`;
+            }
+        } else if (!inputUrl.startsWith('http') && !inputUrl.startsWith('nexus://')) {
+            finalUrl = 'https://' + inputUrl;
+        }
+
+        // Update History Stack
+        tabData.historyIndex++;
+        tabData.history.splice(tabData.historyIndex, tabData.history.length - tabData.historyIndex, finalUrl);
+        
+        loadUrlIntoPane(tabId, finalUrl);
+    }
+
+    function loadUrlIntoPane(tabId, url) {
+        const tabData = tabs.find(t => t.id === tabId);
+        const paneEl = document.getElementById(`pane-${tabId}`);
+        const uiEl = document.getElementById(`ui-${tabId}`);
+        
+        tabData.url = url;
+        tabData.isLoading = true;
+        
+        // UI Updates
+        els.loader.classList.add('loading');
+        uiEl.querySelector('.tab-icon i').className = 'fas fa-circle-notch fa-spin';
+        
+        if (url === 'nexus://newtab') {
+            paneEl.innerHTML = createNewTabPageHTML();
+            finishLoading(tabId, 'New Tab', 'fab fa-chrome');
+            setupNewTabEvents(paneEl);
+        } else {
+            // Offline Mode: Show mock offline page for any external URL
+            paneEl.innerHTML = `
+                <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; background: var(--surface-color); color: var(--text-main); font-family: sans-serif; text-align: center;">
+                    <i class="fas fa-wifi" style="font-size: 64px; margin-bottom: 20px; color: var(--text-muted); opacity: 0.5;"></i>
+                    <h2 style="margin-bottom: 10px;">No internet</h2>
+                    <p style="color: var(--text-muted); margin-bottom: 20px;">You're offline. Check your connection.</p>
+                    <p style="color: var(--text-muted); font-size: 12px;">ERR_INTERNET_DISCONNECTED</p>
+                </div>
+            `;
+            setTimeout(() => { finishLoading(tabId, url, 'fas fa-globe'); }, 500);
+        }
+        
+        if(tabId === activeTabId) updateToolbarUI(tabData);
+    }
+
+    function finishLoading(tabId, title, iconClass) {
+        const tabData = tabs.find(t => t.id === tabId);
+        if(!tabData) return;
+        
+        tabData.isLoading = false;
+        tabData.title = title;
+        
+        const uiEl = document.getElementById(`ui-${tabId}`);
+        if(uiEl) {
+            uiEl.querySelector('.tab-title').textContent = title;
+            uiEl.querySelector('.tab-icon i').className = iconClass;
+        }
+        
+        if(tabId === activeTabId) {
+            els.loader.classList.remove('loading');
+            updateToolbarUI(tabData);
+        }
+    }
+
+    function updateToolbarUI(tabData) {
+        // Omnibox
+        els.omnibox.value = tabData.url === 'nexus://newtab' ? '' : tabData.url;
+        
+        // Security Icon
+        if(tabData.url.startsWith('https://')) {
+            els.securityIcon.innerHTML = '<i class="fas fa-lock"></i>';
+            els.securityIcon.classList.add('secure');
+        } else if (tabData.url === 'nexus://newtab') {
+            els.securityIcon.innerHTML = '<i class="fas fa-search"></i>';
+            els.securityIcon.classList.remove('secure');
+        } else {
+            els.securityIcon.innerHTML = '<i class="fas fa-info-circle"></i>';
+            els.securityIcon.classList.remove('secure');
+        }
+
+        // Nav Buttons
+        els.btnBack.classList.toggle('disabled', tabData.historyIndex <= 0);
+        els.btnFwd.classList.toggle('disabled', tabData.historyIndex >= tabData.history.length - 1);
+        
+        // Bookmark Status
+        checkBookmarkStatus(tabData.url);
+    }
+
+    // --- Bookmarks Logic ---
+
+    async function loadBookmarks() {
+        if(isIncognito) return;
+        try {
+            const res = await fetch('../api/settings.php?action=get&key=bookmarks');
+            const data = await res.json();
+            if (data.success && data.value) {
+                bookmarks = data.value;
+            } else {
+                bookmarks = [{title: 'Google', url: 'https://google.com'}, {title: 'GitHub', url: 'https://github.com'}];
+            }
+        } catch (e) {
+            bookmarks = [{title: 'Google', url: 'https://google.com'}, {title: 'GitHub', url: 'https://github.com'}];
+        }
+    }
+
+    async function saveBookmarks() {
+        if(isIncognito) return;
+        try {
+            const formData = new FormData();
+            formData.append('action', 'set');
+            formData.append('key', 'bookmarks');
+            formData.append('value', JSON.stringify(bookmarks));
+            await fetch('../api/settings.php', {
+                method: 'POST',
+                body: formData
+            });
+        } catch (e) {
+            console.error('Failed to save bookmarks', e);
+        }
+        renderBookmarksBar();
+    }
+
+    function toggleBookmark() {
+        const tabData = tabs.find(t => t.id === activeTabId);
+        if(!tabData || tabData.url.startsWith('nexus://')) return;
+
+        const index = bookmarks.findIndex(b => b.url === tabData.url);
+        if (index > -1) {
+            bookmarks.splice(index, 1);
+            els.bookmarkBtn.classList.remove('starred');
+            els.bookmarkBtn.innerHTML = '<i class="far fa-star"></i>';
+        } else {
+            bookmarks.push({ title: tabData.title || tabData.url, url: tabData.url });
+            els.bookmarkBtn.classList.add('starred');
+            els.bookmarkBtn.innerHTML = '<i class="fas fa-star"></i>';
+        }
+        saveBookmarks();
+    }
+
+    function checkBookmarkStatus(url) {
+        if(bookmarks.some(b => b.url === url)) {
+            els.bookmarkBtn.classList.add('starred');
+            els.bookmarkBtn.innerHTML = '<i class="fas fa-star"></i>';
+        } else {
+            els.bookmarkBtn.classList.remove('starred');
+            els.bookmarkBtn.innerHTML = '<i class="far fa-star"></i>';
+        }
+    }
+
+    function renderBookmarksBar() {
+        els.bookmarksBar.innerHTML = '';
+        bookmarks.forEach(bm => {
+            const el = document.createElement('div');
+            el.className = 'bookmark-item';
+            el.innerHTML = `<i class="fas fa-globe" style="color:var(--text-muted); font-size: 14px; margin-right: 6px;"></i> <span>${bm.title}</span>`;
+            el.onclick = () => { navigateTab(activeTabId, bm.url); };
+            els.bookmarksBar.appendChild(el);
+        });
+    }
+
+    // --- HTML Generators ---
+    
+    function createNewTabPageHTML() {
+        return `
+            <div class="new-tab-page">
+                <div class="ntp-logo"><i class="fab fa-chrome"></i> Nexus</div>
+                <div class="incognito-notice">
+                    <h2>You've gone incognito</h2>
+                    <p>Now you can browse privately, and other people who use this device won't see your activity. However, downloads and bookmarks will be saved.</p>
+                </div>
+                <div class="ntp-search">
+                    <i class="fas fa-search" style="color:var(--text-muted)"></i>
+                    <input type="text" class="ntp-input" placeholder="Search the web or type a URL" autofocus>
+                </div>
+                <div class="ntp-shortcuts">
+                    <div class="shortcut" data-url="https://youtube.com">
+                        <div class="shortcut-icon"><i class="fab fa-youtube" style="color:#ff0000"></i></div>
+                        <div class="shortcut-title">YouTube</div>
+                    </div>
+                    <div class="shortcut" data-url="https://reddit.com">
+                        <div class="shortcut-icon"><i class="fab fa-reddit-alien" style="color:#ff4500"></i></div>
+                        <div class="shortcut-title">Reddit</div>
+                    </div>
+                    <div class="shortcut" data-url="https://wikipedia.org">
+                        <div class="shortcut-icon"><i class="fab fa-wikipedia-w"></i></div>
+                        <div class="shortcut-title">Wikipedia</div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    function setupNewTabEvents(paneEl) {
+        const input = paneEl.querySelector('.ntp-input');
+        if(input) {
+            input.addEventListener('keydown', (e) => {
+                if(e.key === 'Enter') navigateTab(activeTabId, input.value);
+            });
+        }
+        paneEl.querySelectorAll('.shortcut').forEach(s => {
+            s.addEventListener('click', () => navigateTab(activeTabId, s.dataset.url));
+        });
+    }
+
+    // --- Dialog Mocks ---
+    
+    function openDialog(title, type) {
+        els.dialogTitle.textContent = title;
+        els.overlay.classList.add('visible');
+        
+        let content = '';
+        if(type === 'downloads') {
+            content = `
+                <ul class="mock-list">
+                    <li>
+                        <div><i class="fas fa-file-archive" style="color:var(--accent-color); margin-right: 10px;"></i> ubuntu-22.04-desktop.iso <br><small style="color:var(--text-muted)">3.4 GB - Finished</small></div>
+                        <a href="#" style="color:var(--accent-color); text-decoration:none">Show in folder</a>
+                    </li>
+                    <li>
+                        <div><i class="fas fa-image" style="color:#0f9d58; margin-right: 10px;"></i> vacation_photo.png <br><small style="color:var(--text-muted)">2.1 MB - Finished</small></div>
+                        <a href="#" style="color:var(--accent-color); text-decoration:none">Show in folder</a>
+                    </li>
+                </ul>
+            `;
+        } else if (type === 'extensions') {
+            content = `
+                <ul class="mock-list">
+                    <li>
+                        <div><strong>uBlock Origin</strong><br><small style="color:var(--text-muted)">Blocks ads, trackers, and malware sites.</small></div>
+                        <button class="mock-btn" style="background:var(--surface-hover); color:var(--text-main)">Remove</button>
+                    </li>
+                    <li>
+                        <div><strong>React Developer Tools</strong><br><small style="color:var(--text-muted)">Adds React debugging tools to the DevTools.</small></div>
+                        <button class="mock-btn" style="background:var(--surface-hover); color:var(--text-main)">Remove</button>
+                    </li>
+                </ul>
+                <div style="margin-top:20px; text-align:center"><button class="mock-btn">Find more extensions</button></div>
+            `;
+        } else if (type === 'sync') {
+            content = `
+                <div style="text-align:center; padding: 20px;">
+                    <i class="fas fa-user-circle" style="font-size:64px; color:var(--accent-color); margin-bottom:20px;"></i>
+                    <h2>Sign in to sync</h2>
+                    <p style="color:var(--text-muted); margin: 10px 0 20px;">Sync your bookmarks, history, passwords, and other settings across all your devices.</p>
+                    <input type="email" placeholder="Email or phone" style="width:100%; padding:10px; margin-bottom:10px; border-radius:4px; border:1px solid var(--border-color); background:var(--bg-color); color:var(--text-main)"><br>
+                    <button class="mock-btn" style="width:100%; padding:10px; font-size:16px;">Next</button>
+                </div>
+            `;
+        } else if (type === 'passwords') {
+            content = `
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                    <strong>Offer to save passwords</strong>
+                    <label class="switch"><input type="checkbox" checked> <span class="slider"></span></label>
+                </div>
+                <ul class="mock-list">
+                    <li>
+                        <div><strong>github.com</strong><br><small style="color:var(--text-muted)">user@example.com</small></div>
+                        <i class="fas fa-ellipsis-v" style="cursor:pointer; color:var(--text-muted)"></i>
+                    </li>
+                </ul>
+            `;
+        }
+
+        els.dialogContent.innerHTML = content;
+    }
+
+    function closeDialog() {
+        els.overlay.classList.remove('visible');
+    }
+
+    // --- Event Listeners Setup ---
+
+    function setupEventListeners() {
+        // Toolbar actions
+        els.newTabBtn.onclick = () => createNewTab();
+        els.btnHome.onclick = () => navigateTab(activeTabId, 'nexus://newtab');
+        
+        els.btnBack.onclick = () => {
+            const tab = tabs.find(t => t.id === activeTabId);
+            if(tab && tab.historyIndex > 0) {
+                tab.historyIndex--;
+                loadUrlIntoPane(tab.id, tab.history[tab.historyIndex]);
+            }
+        };
+
+        els.btnFwd.onclick = () => {
+            const tab = tabs.find(t => t.id === activeTabId);
+            if(tab && tab.historyIndex < tab.history.length - 1) {
+                tab.historyIndex++;
+                loadUrlIntoPane(tab.id, tab.history[tab.historyIndex]);
+            }
+        };
+
+        els.btnRefresh.onclick = () => {
+            const tab = tabs.find(t => t.id === activeTabId);
+            if(tab && tab.url !== 'nexus://newtab') {
+                const iframe = document.getElementById(`iframe-${tab.id}`);
+                if(iframe) iframe.src = iframe.src;
+            }
+        };
+
+        // Omnibox
+        els.omnibox.addEventListener('focus', () => { els.omniboxContainer.classList.add('focused'); els.omnibox.select(); });
+        els.omnibox.addEventListener('blur', () => els.omniboxContainer.classList.remove('focused'));
+        els.omnibox.addEventListener('keydown', (e) => {
+            if(e.key === 'Enter') {
+                els.omnibox.blur();
+                navigateTab(activeTabId, els.omnibox.value);
+            }
+        });
+
+        // Bookmarks
+        els.bookmarkBtn.onclick = toggleBookmark;
+
+        // Menus
+        els.btnMenu.onclick = (e) => { e.stopPropagation(); els.mainMenu.classList.toggle('visible'); };
+        document.addEventListener('click', () => els.mainMenu.classList.remove('visible'));
+        
+        // Menu Items
+        document.getElementById('menu-new-tab').onclick = () => createNewTab();
+        document.getElementById('menu-new-window').onclick = () => createNewTab(); // Same behavior for simulation
+        document.getElementById('menu-incognito').onclick = () => {
+            isIncognito = !isIncognito;
+            document.body.classList.toggle('incognito', isIncognito);
+            createNewTab();
+        };
+        document.getElementById('menu-proxy').onclick = () => {
+            isProxyEnabled = !isProxyEnabled;
+            document.getElementById('proxy-text').textContent = isProxyEnabled ? 'Disable Proxy Mode' : 'Enable Proxy Mode';
+        };
+        document.getElementById('menu-downloads').onclick = () => openDialog('Downloads', 'downloads');
+        document.getElementById('menu-extensions').onclick = () => openDialog('Extensions', 'extensions');
+        document.getElementById('menu-sync').onclick = () => openDialog('Turn on sync', 'sync');
+        document.getElementById('menu-passwords').onclick = () => openDialog('Passwords and autofill', 'passwords');
+
+        // Dialog close
+        els.dialogClose.onclick = closeDialog;
+        els.overlay.onclick = (e) => { if(e.target === els.overlay) closeDialog(); };
+        
+        // Quick access buttons in toolbar
+        document.getElementById('btn-extensions').onclick = () => openDialog('Extensions', 'extensions');
+        document.getElementById('btn-downloads').onclick = () => openDialog('Downloads', 'downloads');
+    }
+
+    // Boot
+    init();
+
+</script>
+</body>
+</html>

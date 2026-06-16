@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Terminal</title>
+    <link rel="stylesheet" href="../css/fontawesome/css/all.min.css">
+    <style>
+        :root {
+            --bg: #0c0c0c;
+            --fg: #cccccc;
+            --tab-bg: #2b2b2b;
+            --tab-active-bg: #0c0c0c;
+            --accent: #0078d7;
+            --font-size: 14px;
+            --font-family: 'Consolas', 'Courier New', monospace;
+        }
+
+        body, html { margin: 0; padding: 0; height: 100%; font-family: var(--font-family); background: var(--bg); color: var(--fg); overflow: hidden; display: flex; flex-direction: column; }
+
+        /* Tabs Bar */
+        .tabs-bar {
+            background: #202020; height: 40px; display: flex; align-items: center; padding: 0 5px;
+            user-select: none; border-bottom: 1px solid #333;
+        }
+        .tab {
+            height: 32px; min-width: 150px; background: #2b2b2b; color: #999;
+            display: flex; align-items: center; padding: 0 10px; margin-right: 2px;
+            border-radius: 4px 4px 0 0; position: relative; font-size: 12px;
+            cursor: pointer; transition: background 0.2s;
+        }
+        .tab:hover { background: #353535; }
+        .tab.active { background: var(--tab-active-bg); color: #fff; }
+        .tab .tab-icon { margin-right: 8px; font-size: 14px; }
+        .tab .tab-close { margin-left: auto; width: 16px; height: 16px; display: flex; align-items: center; justify-content: center; border-radius: 2px; }
+        .tab .tab-close:hover { background: #e81123; color: white; }
+        
+        .add-tab { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; cursor: pointer; border-radius: 4px; }
+        .add-tab:hover { background: #353535; }
+
+        .header-controls { margin-left: auto; display: flex; gap: 5px; padding-right: 10px; }
+        .header-btn { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; cursor: pointer; border-radius: 4px; }
+        .header-btn:hover { background: #353535; }
+
+        /* Content Area */
+        #content-root { flex: 1; position: relative; overflow: hidden; }
+        .tab-pane { display: none; width: 100%; height: 100%; position: relative; }
+        .tab-pane.active { display: flex; } /* Support flex for split panes */
+
+        /* Split Panes */
+        .pane { flex: 1; display: flex; flex-direction: column; padding: 10px; overflow-y: auto; position: relative; border-right: 1px solid #333; }
+        .pane:last-child { border-right: none; }
+        .pane.active { outline: 1px solid var(--accent); outline-offset: -1px; }
+
+        /* Terminal Styling */
+        .terminal-output { flex: 1; overflow-y: auto; white-space: pre-wrap; word-break: break-all; margin-bottom: 5px; }
+        .input-line { display: flex; align-items: flex-start; }
+        .prompt { color: #00ff00; margin-right: 8px; white-space: nowrap; }
+        .cmd-input {
+            background: transparent; border: none; color: inherit; font-family: inherit; font-size: inherit;
+            outline: none; flex: 1; padding: 0; margin: 0; resize: none;
+        }
+
+        /* Profiles Menu */
+        .dropdown {
+            position: absolute; top: 40px; background: #2b2b2b; border: 1px solid #444;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5); display: none; z-index: 1000;
+            min-width: 200px; padding: 5px 0; border-radius: 4px;
+        }
+        .dropdown-item {
+            padding: 8px 15px; cursor: pointer; font-size: 13px; display: flex; align-items: center; gap: 10px;
+        }
+        .dropdown-item:hover { background: #404040; }
+        .dropdown-item i { width: 16px; text-align: center; }
+
+        /* Settings Overlay */
+        #settings-overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: none;
+            align-items: center; justify-content: center; z-index: 2000;
+        }
+        .settings-dialog {
+            background: #202020; width: 400px; padding: 20px; border: 1px solid #444; border-radius: 8px;
+        }
+        .settings-row { margin-bottom: 15px; }
+        .settings-row label { display: block; margin-bottom: 5px; font-size: 12px; color: #aaa; }
+        .settings-row select, .settings-row input {
+            width: 100%; background: #2b2b2b; border: 1px solid #444; color: #fff; padding: 5px; border-radius: 4px;
+        }
+        .btn { padding: 6px 15px; border: none; border-radius: 4px; cursor: pointer; background: var(--accent); color: white; }
+
+    </style>
+</head>
+<body>
+
+    <div class="tabs-bar" id="tabs-bar">
+        <div id="tabs-container" style="display:flex;"></div>
+        <div class="add-tab" id="btn-add-tab" onclick="toggleProfileDropdown(event)">
+            <i class="fas fa-plus"></i>
+        </div>
+        
+        <div class="dropdown" id="profile-dropdown">
+            <div class="dropdown-item" onclick="createTab('cmd')"><i class="fas fa-terminal"></i> Command Prompt</div>
+            <div class="dropdown-item" onclick="createTab('powershell')"><i class="fab fa-windows" style="color:#0078d7"></i> Windows PowerShell</div>
+            <div class="dropdown-item" onclick="createTab('wsl')"><i class="fab fa-linux"></i> Ubuntu (WSL)</div>
+            <div class="dropdown-sep" style="border-top:1px solid #444; margin: 5px 0;"></div>
+            <div class="dropdown-item" onclick="showSettings()"><i class="fas fa-cog"></i> Settings</div>
+        </div>
+
+        <div class="header-controls">
+            <div class="header-btn" onclick="splitPane()"><i class="fas fa-columns"></i></div>
+            <div class="header-btn" onclick="showSettings()"><i class="fas fa-palette"></i></div>
+        </div>
+    </div>
+
+    <div id="content-root"></div>
+
+    <div id="settings-overlay">
+        <div class="settings-dialog">
+            <h3 style="margin-top:0">Terminal Settings</h3>
+            <div class="settings-row">
+                <label>Theme</label>
+                <select id="set-theme" onchange="updateTheme()">
+                    <option value="dark">Dark Mode (Default)</option>
+                    <option value="light">Light Mode</option>
+                    <option value="powershell">PowerShell Blue</option>
+                    <option value="vintage">Vintage (Amber)</option>
+                </select>
+            </div>
+            <div class="settings-row">
+                <label>Font Size</label>
+                <input type="number" id="set-font-size" value="14" onchange="updateTheme()">
+            </div>
+            <div class="settings-row">
+                <label>Transparency (%)</label>
+                <input type="range" id="set-opacity" min="50" max="100" value="100" onchange="updateTheme()">
+            </div>
+            <div style="text-align:right">
+                <button class="btn" onclick="hideSettings()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const fs = window.parent.fs;
+        const tabsContainer = document.getElementById('tabs-container');
+        const contentRoot = document.getElementById('content-root');
+        
+        let tabs = [];
+        let activeTabId = null;
+        let tabCounter = 0;
+
+        const profiles = {
+            'cmd': { name: 'Command Prompt', icon: 'fas fa-terminal', prompt: 'C:\\Users\\Admin>', color: '#ccc' },
+            'powershell': { name: 'Windows PowerShell', icon: 'fab fa-windows', prompt: 'PS C:\\Users\\Admin>', color: '#012456', fg: '#fff' },
+            'wsl': { name: 'Ubuntu (WSL)', icon: 'fab fa-linux', prompt: 'admin@web-os:~$', color: '#300a24', fg: '#fff' }
+        };
+
+        function createTab(profileKey = 'cmd') {
+            const id = 'tab-' + (++tabCounter);
+            const profile = profiles[profileKey];
+            
+            const tabEl = document.createElement('div');
+            tabEl.className = 'tab';
+            tabEl.id = 'tab-head-' + id;
+            tabEl.innerHTML = `
+                <i class="tab-icon ${profile.icon}"></i>
+                <span>${profile.name}</span>
+                <div class="tab-close" onclick="closeTab(event, '${id}')"><i class="fas fa-times"></i></div>
+            `;
+            tabEl.onclick = () => switchTab(id);
+            tabsContainer.appendChild(tabEl);
+
+            const paneEl = document.createElement('div');
+            paneEl.className = 'tab-pane';
+            paneEl.id = id;
+            contentRoot.appendChild(paneEl);
+
+            const tabObj = {
+                id: id,
+                profile: profile,
+                panes: []
+            };
+            tabs.push(tabObj);
+            
+            addPane(tabObj);
+            switchTab(id);
+        }
+
+        function addPane(tabObj) {
+            const paneId = tabObj.id + '-pane-' + tabObj.panes.length;
+            const paneEl = document.createElement('div');
+            paneEl.className = 'pane active';
+            paneEl.id = paneId;
+            paneEl.style.backgroundColor = tabObj.profile.color;
+            if (tabObj.profile.fg) paneEl.style.color = tabObj.profile.fg;
+
+            paneEl.innerHTML = `
+                <div class="terminal-output">Microsoft Windows [Version 10.0.19045.2965]\n(c) Microsoft Corporation. All rights reserved.\n</div>
+                <div class="input-line">
+                    <span class="prompt">${tabObj.profile.prompt}</span>
+                    <textarea class="cmd-input" rows="1" autofocus spellcheck="false"></textarea>
+                </div>
+            `;
+
+            const container = document.getElementById(tabObj.id);
+            container.appendChild(paneEl);
+            
+            const paneObj = {
+                id: paneId,
+                history: [],
+                historyIdx: -1,
+                currentPath: ''
+            };
+            tabObj.panes.push(paneObj);
+
+            const input = paneEl.querySelector('.cmd-input');
+            const output = paneEl.querySelector('.terminal-output');
+            
+            input.addEventListener('keydown', (e) => handleKey(e, tabObj, paneObj, input, output));
+            input.addEventListener('input', () => {
+                input.style.height = 'auto';
+                input.style.height = input.scrollHeight + 'px';
+            });
+            
+            paneEl.onclick = () => {
+                document.querySelectorAll('.pane').forEach(p => p.classList.remove('active'));
+                paneEl.classList.add('active');
+                input.focus();
+            };
+        }
+
+        function switchTab(id) {
+            document.querySelectorAll('.tab, .tab-pane').forEach(el => el.classList.remove('active'));
+            document.getElementById('tab-head-' + id).classList.add('active');
+            document.getElementById(id).classList.add('active');
+            activeTabId = id;
+            
+            // Focus last active pane in this tab
+            const tab = tabs.find(t => t.id === id);
+            if (tab && tab.panes.length > 0) {
+                const lastPane = document.getElementById(tab.panes[tab.panes.length-1].id);
+                lastPane.querySelector('.cmd-input').focus();
+            }
+        }
+
+        function closeTab(e, id) {
+            e.stopPropagation();
+            const idx = tabs.findIndex(t => t.id === id);
+            if (idx === -1) return;
+            
+            document.getElementById('tab-head-' + id).remove();
+            document.getElementById(id).remove();
+            tabs.splice(idx, 1);
+            
+            if (activeTabId === id && tabs.length > 0) {
+                switchTab(tabs[Math.max(0, idx - 1)].id);
+            } else if (tabs.length === 0) {
+                // If last tab closed, maybe exit app?
+                window.parent.processManager.kill(window.frameElement.dataset.pid);
+            }
+        }
+
+        function splitPane() {
+            const tab = tabs.find(t => t.id === activeTabId);
+            if (tab) addPane(tab);
+        }
+
+        async function handleKey(e, tab, pane, input, output) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                const cmdLine = input.value.trim();
+                input.value = '';
+                input.style.height = 'auto';
+
+                const logLine = document.createElement('div');
+                logLine.textContent = tab.profile.prompt + ' ' + cmdLine;
+                output.appendChild(logLine);
+
+                if (cmdLine) {
+                    pane.history.push(cmdLine);
+                    pane.historyIdx = pane.history.length;
+                    await executeCommand(cmdLine, pane, output);
+                }
+                output.parentNode.scrollTop = output.parentNode.scrollHeight;
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                if (pane.historyIdx > 0) {
+                    pane.historyIdx--;
+                    input.value = pane.history[pane.historyIdx];
+                }
+            } else if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                if (pane.historyIdx < pane.history.length - 1) {
+                    pane.historyIdx++;
+                    input.value = pane.history[pane.historyIdx];
+                } else {
+                    pane.historyIdx = pane.history.length;
+                    input.value = '';
+                }
+            }
+        }
+
+        async function executeCommand(cmdLine, pane, output) {
+            const parts = cmdLine.split(' ');
+            const cmd = parts[0].toLowerCase();
+            const args = parts.slice(1);
+            
+            const print = (text) => {
+                const div = document.createElement('div');
+                div.textContent = text;
+                output.appendChild(div);
+            };
+
+            switch(cmd) {
+                case 'help': print('Available: help, cls, dir, echo, type, del, exit, whoami'); break;
+                case 'cls': output.innerHTML = ''; break;
+                case 'whoami': print('administrator'); break;
+                case 'exit': closeTab({stopPropagation:()=>{}}, activeTabId); break;
+                case 'dir':
+                    const res = await fs.list(args[0] || pane.currentPath);
+                    if(res.success) {
+                        res.files.forEach(f => print(`${f.is_dir?'<DIR>':'     '} ${f.name}`));
+                    } else print(res.error);
+                    break;
+                case 'echo': print(args.join(' ')); break;
+                case 'type':
+                    if(!args[0]) return print('Missing filename');
+                    const r = await fs.read(args[0]);
+                    if(r.success) print(r.content);
+                    else print('File not found');
+                    break;
+                default:
+                    print(`'${cmd}' is not recognized as an internal or external command.`);
+            }
+        }
+
+        // Dropdown & Settings
+        function toggleProfileDropdown(e) {
+            e.stopPropagation();
+            const dd = document.getElementById('profile-dropdown');
+            dd.style.display = dd.style.display === 'block' ? 'none' : 'block';
+            dd.style.left = e.target.offsetLeft + 'px';
+        }
+
+        window.onclick = () => document.getElementById('profile-dropdown').style.display = 'none';
+
+        function showSettings() { document.getElementById('settings-overlay').style.display = 'flex'; }
+        function hideSettings() { document.getElementById('settings-overlay').style.display = 'none'; }
+
+        function updateTheme() {
+            const theme = document.getElementById('set-theme').value;
+            const fontSize = document.getElementById('set-font-size').value;
+            const opacity = document.getElementById('set-opacity').value;
+
+            document.documentElement.style.setProperty('--font-size', fontSize + 'px');
+            document.body.style.opacity = opacity / 100;
+
+            const themes = {
+                'dark': { bg: '#0c0c0c', fg: '#cccccc' },
+                'light': { bg: '#f2f2f2', fg: '#333333' },
+                'powershell': { bg: '#012456', fg: '#ffffff' },
+                'vintage': { bg: '#000000', fg: '#ffb000' }
+            };
+
+            const t = themes[theme];
+            document.documentElement.style.setProperty('--bg', t.bg);
+            document.documentElement.style.setProperty('--fg', t.fg);
+            
+            // Apply to all panes
+            document.querySelectorAll('.pane').forEach(p => {
+                p.style.backgroundColor = t.bg;
+                p.style.color = t.fg;
+            });
+        }
+
+        // Shortcuts
+        window.addEventListener('keydown', (e) => {
+            if (e.ctrlKey && e.shiftKey) {
+                if (e.key === 'T') { e.preventDefault(); createTab('cmd'); }
+                if (e.key === 'W') { e.preventDefault(); closeTab(e, activeTabId); }
+                if (e.key === '+') { e.preventDefault(); document.getElementById('set-font-size').value++; updateTheme(); }
+                if (e.key === '_') { e.preventDefault(); document.getElementById('set-font-size').value--; updateTheme(); }
+            }
+        });
+
+        // Init
+        createTab('cmd');
+
+    </script>
+</body>
+</html>

@@ -1,0 +1,1262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>This PC</title>
+    <link rel="stylesheet" href="../css/fontawesome/css/all.min.css">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; }
+        body, html {
+            margin: 0; padding: 0; height: 100%;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #fff; color: #1a1a1a;
+            display: flex; flex-direction: column;
+            user-select: none; overflow: hidden;
+            font-size: 13px;
+        }
+
+        /* ── RIBBON TOOLBAR ── */
+        .ribbon { background: #f0f0f0; border-bottom: 1px solid #ccc; }
+        .ribbon-tabs { display: flex; padding: 0 8px; gap: 2px; }
+        .ribbon-tab {
+            padding: 6px 14px; font-size: 12px; cursor: pointer;
+            border-bottom: 2px solid transparent; color: #333;
+            transition: background 0.15s;
+        }
+        .ribbon-tab:hover { background: #e0e0e0; }
+        .ribbon-tab.active { border-bottom-color: #0078d7; color: #0078d7; font-weight: 600; }
+
+        .ribbon-body {
+            padding: 4px 8px 5px; display: flex; gap: 2px; align-items: center;
+        }
+        .ribbon-btn {
+            display: flex; flex-direction: column; align-items: center;
+            padding: 4px 10px; cursor: pointer; border-radius: 3px;
+            min-width: 48px; transition: background 0.15s; color: #333;
+            font-size: 11px; gap: 2px;
+        }
+        .ribbon-btn i { font-size: 18px; }
+        .ribbon-btn:hover { background: #dce8f5; }
+        .ribbon-btn:active { background: #c8dcf0; }
+        .ribbon-btn.disabled { opacity: 0.4; pointer-events: none; }
+        .ribbon-sep { width: 1px; background: #ccc; height: 36px; margin: 0 4px; }
+
+        /* ── NAV BAR ── */
+        .navbar {
+            display: flex; align-items: center; gap: 4px;
+            padding: 4px 8px; background: #f7f7f7;
+            border-bottom: 1px solid #ddd;
+        }
+        .nav-btn {
+            width: 28px; height: 28px; display: flex; align-items: center;
+            justify-content: center; border-radius: 3px; cursor: pointer;
+            color: #555; transition: background 0.15s; font-size: 12px;
+        }
+        .nav-btn:hover { background: #e0e0e0; }
+        .nav-btn.disabled { opacity: 0.3; pointer-events: none; }
+        .address-bar {
+            flex: 1; display: flex; align-items: center;
+            background: #fff; border: 1px solid #c8c8c8; height: 26px;
+            padding: 0 8px; border-radius: 2px; font-size: 12px; color: #333;
+            cursor: default; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+            transition: border-color 0.15s;
+        }
+        .address-bar:hover { border-color: #0078d7; }
+        .address-bar .crumb { color: #0078d7; cursor: pointer; }
+        .address-bar .crumb:hover { text-decoration: underline; }
+        .address-bar .sep { color: #999; margin: 0 4px; }
+        .search-box {
+            display: flex; align-items: center;
+            background: #fff; border: 1px solid #c8c8c8; height: 26px;
+            padding: 0 8px; border-radius: 2px; gap: 6px; width: 200px;
+            transition: border-color 0.15s;
+        }
+        .search-box:focus-within { border-color: #0078d7; }
+        .search-box input {
+            border: none; outline: none; font-size: 12px; width: 100%;
+            font-family: inherit; background: transparent; color: #333;
+        }
+        .search-box i { color: #888; font-size: 12px; }
+
+        /* ── MAIN LAYOUT ── */
+        .main { flex: 1; display: flex; overflow: hidden; }
+
+        /* ── SIDEBAR ── */
+        .sidebar {
+            width: 190px; padding: 8px 0; overflow-y: auto;
+            border-right: 1px solid #e0e0e0; background: #f9f9f9;
+            flex-shrink: 0;
+        }
+        .sidebar-section { padding: 2px 0; }
+        .sidebar-header {
+            padding: 4px 14px 2px; font-size: 11px; font-weight: 700;
+            color: #555; text-transform: uppercase; letter-spacing: 0.04em;
+            display: flex; align-items: center; justify-content: space-between;
+            cursor: pointer;
+        }
+        .sidebar-header i { font-size: 10px; color: #888; transition: transform 0.2s; }
+        .sidebar-header.collapsed i { transform: rotate(-90deg); }
+        .sidebar-items { }
+        .sidebar-item {
+            padding: 5px 14px 5px 22px; cursor: pointer; display: flex;
+            align-items: center; gap: 8px; border-radius: 0;
+            transition: background 0.1s; font-size: 12.5px; color: #222;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .sidebar-item:hover { background: #e8e8e8; }
+        .sidebar-item.active { background: #cce5ff; color: #005a9e; }
+        .sidebar-item i { font-size: 14px; width: 16px; text-align: center; flex-shrink: 0; }
+
+        /* ── CONTENT AREA ── */
+        .content {
+            flex: 1; overflow-y: auto; padding: 14px 18px;
+            display: flex; flex-direction: column; gap: 24px;
+        }
+
+        .section-title {
+            font-size: 12px; font-weight: 600; color: #555;
+            margin: 0 0 8px; padding-bottom: 5px;
+            border-bottom: 1px solid #e8e8e8;
+        }
+
+        /* ── DRIVES GRID ── */
+        .drives-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 10px;
+        }
+        .drive-card {
+            border: 1px solid #d8d8d8; border-radius: 4px;
+            padding: 10px 14px; cursor: pointer; display: flex;
+            align-items: center; gap: 12px; transition: all 0.15s;
+            background: #fff; position: relative;
+        }
+        .drive-card:hover { background: #e8f2fc; border-color: #a8c9e8; }
+        .drive-card.selected { background: #cce2f7; border-color: #0078d7; }
+        .drive-card .drive-icon { font-size: 2.8rem; flex-shrink: 0; }
+        .drive-card .drive-info { flex: 1; min-width: 0; }
+        .drive-card .drive-name { font-size: 12.5px; font-weight: 600; color: #111; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .drive-card .drive-label { font-size: 11px; color: #666; margin-bottom: 5px; }
+        .storage-bar-bg {
+            width: 100%; height: 8px; background: #e0e0e0; border-radius: 10px; overflow: hidden;
+        }
+        .storage-bar-fill {
+            height: 100%; border-radius: 10px; transition: width 0.6s ease;
+        }
+        .bar-normal { background: linear-gradient(90deg, #0078d7, #40a0f0); }
+        .bar-warning { background: linear-gradient(90deg, #ff9100, #ffca28); }
+        .bar-critical { background: linear-gradient(90deg, #e53935, #ef9a9a); }
+        .drive-space { font-size: 11px; color: #666; margin-top: 3px; }
+
+        /* ── FOLDER GRID ── */
+        .folders-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+            gap: 8px;
+        }
+        .folder-card {
+            border: 1px solid transparent; border-radius: 4px;
+            padding: 10px 8px; cursor: pointer; display: flex;
+            flex-direction: column; align-items: center; gap: 5px;
+            transition: all 0.15s; text-align: center;
+        }
+        .folder-card:hover { background: #e8f2fc; border-color: #a8c9e8; }
+        .folder-card.selected { background: #cce2f7; border-color: #0078d7; }
+        .folder-card i { font-size: 2.4rem; }
+        .folder-card .folder-name { font-size: 11.5px; color: #222; line-height: 1.3; }
+        .folder-card .folder-path { font-size: 10px; color: #888; }
+
+        /* ── FILE VIEW (when navigated into folder) ── */
+        #file-view { display: none; flex: 1; flex-direction: column; gap: 10px; }
+        #file-view.active { display: flex; }
+        #home-view.hidden { display: none !important; }
+
+        .file-grid-container {
+            display: flex; flex-wrap: wrap; gap: 8px;
+            align-content: flex-start;
+        }
+        .file-item {
+            width: 88px; display: flex; flex-direction: column; align-items: center;
+            padding: 6px 5px; border-radius: 3px; cursor: pointer;
+            border: 1px solid transparent; text-align: center;
+            transition: all 0.1s;
+        }
+        .file-item:hover { background: #e8f2fc; border-color: #a8c9e8; }
+        .file-item.selected { background: #cce2f7; border-color: #0078d7; }
+        .file-item i { font-size: 2.6rem; margin-bottom: 4px; }
+        .file-item .item-name {
+            font-size: 11px; color: #1a1a1a; word-break: break-word;
+            display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+            overflow: hidden; line-height: 1.3; max-width: 80px;
+        }
+        .empty-folder { color: #999; font-size: 13px; padding: 30px; text-align: center; width: 100%; }
+
+        /* ── STATUS BAR ── */
+        .statusbar {
+            height: 24px; background: #f0f0f0; border-top: 1px solid #ddd;
+            display: flex; align-items: center; padding: 0 12px;
+            font-size: 11.5px; color: #555; gap: 16px;
+        }
+        .statusbar-item { display: flex; align-items: center; gap: 4px; }
+
+        /* Context menu */
+        .ctx-menu {
+            position: fixed; background: #fff; border: 1px solid #ccc;
+            box-shadow: 2px 4px 12px rgba(0,0,0,0.15); border-radius: 3px;
+            min-width: 160px; z-index: 9999; padding: 4px 0;
+        }
+        .ctx-item {
+            padding: 7px 16px; cursor: pointer; font-size: 12.5px;
+            display: flex; align-items: center; gap: 10px; color: #222;
+        }
+        .ctx-item:hover { background: #e8f2fc; }
+        .ctx-item i { width: 16px; text-align: center; font-size: 13px; color: #555; }
+        .ctx-sep { border-top: 1px solid #e0e0e0; margin: 3px 0; }
+
+        /* Tooltip */
+        [title] { position: relative; }
+
+        /* Scroll styling */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #f5f5f5; }
+        ::-webkit-scrollbar-thumb { background: #c8c8c8; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #aaa; }
+
+        /* Rename input */
+        .rename-input {
+            border: 1px solid #0078d7; outline: none; font-size: 11px;
+            width: 80px; text-align: center; padding: 1px 3px;
+            font-family: inherit; border-radius: 2px;
+        }
+
+        /* New folder / delete animation */
+        @keyframes popIn {
+            0% { transform: scale(0.7); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .file-item.new-item { animation: popIn 0.2s ease; }
+    </style>
+</head>
+<body>
+
+<!-- RIBBON -->
+<div class="ribbon">
+    <div class="ribbon-tabs">
+        <div class="ribbon-tab active" id="tab-home" onclick="switchTab('home')">Home</div>
+        <div class="ribbon-tab" id="tab-share" onclick="switchTab('share')">Share</div>
+        <div class="ribbon-tab" id="tab-view" onclick="switchTab('view')">View</div>
+        <div class="ribbon-tab" id="tab-computer" onclick="switchTab('computer')">Computer</div>
+    </div>
+    <div class="ribbon-body" id="ribbon-body">
+        <!-- Home tab buttons -->
+        <div class="ribbon-btn" id="rb-newfolder" onclick="createNewFolder()" title="New Folder">
+            <i class="fas fa-folder-plus"></i><span>New<br>Folder</span>
+        </div>
+        <div class="ribbon-sep"></div>
+        <div class="ribbon-btn disabled" id="rb-cut" title="Cut"><i class="fas fa-cut"></i><span>Cut</span></div>
+        <div class="ribbon-btn disabled" id="rb-copy" title="Copy"><i class="fas fa-copy"></i><span>Copy</span></div>
+        <div class="ribbon-btn disabled" id="rb-paste" title="Paste"><i class="fas fa-paste"></i><span>Paste</span></div>
+        <div class="ribbon-sep"></div>
+        <div class="ribbon-btn disabled" id="rb-rename" onclick="renameSelected()" title="Rename"><i class="fas fa-pen"></i><span>Rename</span></div>
+        <div class="ribbon-btn disabled" id="rb-delete" onclick="deleteSelected()" title="Delete"><i class="fas fa-trash-alt"></i><span>Delete</span></div>
+        <div class="ribbon-sep"></div>
+        <div class="ribbon-btn" id="rb-selall" onclick="selectAll()" title="Select All"><i class="fas fa-check-double"></i><span>Select<br>All</span></div>
+        <div class="ribbon-btn disabled" id="rb-open" onclick="openSelected()" title="Open"><i class="fas fa-folder-open"></i><span>Open</span></div>
+        <div class="ribbon-sep"></div>
+        <div class="ribbon-btn" onclick="goHome()" title="This PC"><i class="fas fa-desktop"></i><span>This PC</span></div>
+    </div>
+</div>
+
+<!-- NAVBAR -->
+<div class="navbar">
+    <div class="nav-btn disabled" id="btn-back" onclick="navBack()" title="Back"><i class="fas fa-arrow-left"></i></div>
+    <div class="nav-btn disabled" id="btn-forward" onclick="navForward()" title="Forward"><i class="fas fa-arrow-right"></i></div>
+    <div class="nav-btn" id="btn-up" onclick="navUp()" title="Up"><i class="fas fa-arrow-up"></i></div>
+    <div class="nav-btn" onclick="refreshView()" title="Refresh"><i class="fas fa-sync-alt"></i></div>
+    <div class="address-bar" id="address-bar">
+        <span class="crumb" onclick="goHome()">This PC</span>
+    </div>
+    <div class="search-box">
+        <i class="fas fa-search"></i>
+        <input type="text" id="search-input" placeholder="Search This PC" oninput="handleSearch(this.value)">
+    </div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+    <!-- SIDEBAR -->
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-section">
+            <div class="sidebar-header" onclick="toggleSection('qa')">
+                <span><i class="fas fa-star" style="color:#f5a623;margin-right:5px;"></i> Quick access</span>
+                <i class="fas fa-chevron-down"></i>
+            </div>
+            <div class="sidebar-items" id="qa-items">
+                <div class="sidebar-item active" data-path="" onclick="sidebarNav(this,'')"><i class="fas fa-desktop" style="color:#00b4d8;"></i> Desktop</div>
+                <div class="sidebar-item" data-path="Downloads" onclick="sidebarNav(this,'Downloads')"><i class="fas fa-download" style="color:#0077b6;"></i> Downloads</div>
+                <div class="sidebar-item" data-path="Documents" onclick="sidebarNav(this,'Documents')"><i class="fas fa-file-alt" style="color:#f9c74f;"></i> Documents</div>
+                <div class="sidebar-item" data-path="Pictures" onclick="sidebarNav(this,'Pictures')"><i class="fas fa-images" style="color:#43aa8b;"></i> Pictures</div>
+                <div class="sidebar-item" data-path="Music" onclick="sidebarNav(this,'Music')"><i class="fas fa-music" style="color:#f3722c;"></i> Music</div>
+                <div class="sidebar-item" data-path="Videos" onclick="sidebarNav(this,'Videos')"><i class="fas fa-film" style="color:#277da1;"></i> Videos</div>
+                <div class="sidebar-item" data-path="RecycleBin" onclick="sidebarNav(this,'RecycleBin')"><i class="fas fa-trash-alt" style="color:#888;"></i> Recycle Bin</div>
+            </div>
+        </div>
+        <div class="sidebar-section" style="margin-top:8px;">
+            <div class="sidebar-header" onclick="toggleSection('drives')">
+                <span><i class="fas fa-hdd" style="color:#6c757d;margin-right:5px;"></i> This PC</span>
+                <i class="fas fa-chevron-down"></i>
+            </div>
+            <div class="sidebar-items" id="drives-items">
+                <div class="sidebar-item" onclick="goHome()"><i class="fas fa-tv" style="color:#6c757d;"></i> This PC</div>
+                <div class="sidebar-item" onclick="openDrive('C')" data-drive="C"><i class="fas fa-hdd" style="color:#0078D7;"></i> Local Disk (C:)</div>
+                <div class="sidebar-item" onclick="openDrive('D')" data-drive="D"><i class="fas fa-hdd" style="color:#00b4d8;"></i> Data (D:)</div>
+                <div class="sidebar-item" onclick="openDrive('USB')" data-drive="USB"><i class="fas fa-usb" style="color:#43aa8b;"></i> USB Drive (E:)</div>
+            </div>
+        </div>
+        <div class="sidebar-section" style="margin-top:8px;">
+            <div class="sidebar-header" onclick="toggleSection('net')">
+                <span><i class="fas fa-network-wired" style="color:#888;margin-right:5px;"></i> Network</span>
+                <i class="fas fa-chevron-down"></i>
+            </div>
+            <div class="sidebar-items" id="net-items">
+                <div class="sidebar-item" onclick="showNetworkMsg()"><i class="fas fa-server" style="color:#888;"></i> DESKTOP-WEBOS</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CONTENT -->
+    <div class="content" id="content-area">
+
+        <!-- HOME VIEW (This PC landing) -->
+        <div id="home-view">
+            <!-- Folders section -->
+            <div>
+                <div class="section-title"><i class="fas fa-folder" style="color:#f9c74f;margin-right:6px;"></i>Folders</div>
+                <div class="folders-grid" id="folders-grid">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+
+            <!-- Drives section -->
+            <div>
+                <div class="section-title"><i class="fas fa-hdd" style="color:#0078D7;margin-right:6px;"></i>Devices and drives</div>
+                <div class="drives-grid" id="drives-grid">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+        </div>
+
+        <!-- FILE VIEW (navigated into folder) -->
+        <div id="file-view">
+            <div class="file-grid-container" id="file-grid"></div>
+        </div>
+
+    </div>
+</div>
+
+<!-- STATUS BAR -->
+<div class="statusbar" id="statusbar">
+    <div class="statusbar-item" id="sb-items"><i class="fas fa-info-circle"></i> <span id="sb-count">0 items</span></div>
+    <div class="statusbar-item" id="sb-selected" style="display:none;"><i class="fas fa-check"></i> <span id="sb-sel-text"></span></div>
+</div>
+
+<script>
+// ── STATE ──
+const fs = window.parent.fs;
+const windowManager = window.parent.windowManager;
+
+let currentPath = null; // null = This PC home
+let selectedItems = new Set();
+let historyStack = [];
+let forwardStack = [];
+let clipboard = null;
+let searchTimeout = null;
+
+// Drive definitions (simulated)
+const drives = [
+    {
+        id: 'C', letter: 'C:', label: 'Local Disk', icon: 'fas fa-hdd', iconColor: '#0078D7',
+        totalGB: 476.8, usedGB: 213.4,
+    },
+    {
+        id: 'D', letter: 'D:', label: 'Data', icon: 'fas fa-hdd', iconColor: '#00b4d8',
+        totalGB: 931.5, usedGB: 418.2,
+    },
+    {
+        id: 'USB', letter: 'E:', label: 'USB Drive', icon: 'fas fa-usb', iconColor: '#43aa8b',
+        totalGB: 28.8, usedGB: 14.3,
+    },
+    {
+        id: 'CDROM', letter: 'F:', label: 'CD/DVD', icon: 'fas fa-compact-disc', iconColor: '#888',
+        totalGB: 4.7, usedGB: 4.7,
+    }
+];
+
+// Folder definitions
+const folders = [
+    { name: 'Desktop',   path: '',           icon: 'fas fa-desktop', iconColor: '#00b4d8' },
+    { name: 'Documents', path: 'Documents',  icon: 'fas fa-file-alt', iconColor: '#f9c74f' },
+    { name: 'Downloads', path: 'Downloads',  icon: 'fas fa-download', iconColor: '#0077b6' },
+    { name: 'Music',     path: 'Music',      icon: 'fas fa-music', iconColor: '#f3722c' },
+    { name: 'Pictures',  path: 'Pictures',   icon: 'fas fa-images', iconColor: '#43aa8b' },
+    { name: 'Videos',    path: 'Videos',     icon: 'fas fa-film', iconColor: '#277da1' },
+    { name: 'Recycle Bin',path: 'RecycleBin',icon: 'fas fa-trash-alt', iconColor: '#888' },
+];
+
+// Icon map by file extension
+function getFileIcon(name, isDir) {
+    if (isDir) return { cls: 'fas fa-folder', color: '#f9c74f' };
+    const ext = name.split('.').pop().toLowerCase();
+    const map = {
+        txt: { cls: 'fas fa-file-alt', color: '#80deea' },
+        md:  { cls: 'fas fa-file-alt', color: '#80deea' },
+        pdf: { cls: 'fas fa-file-pdf', color: '#e53935' },
+        jpg: { cls: 'fas fa-file-image', color: '#43aa8b' },
+        jpeg:{ cls: 'fas fa-file-image', color: '#43aa8b' },
+        png: { cls: 'fas fa-file-image', color: '#43aa8b' },
+        gif: { cls: 'fas fa-file-image', color: '#43aa8b' },
+        mp3: { cls: 'fas fa-file-audio', color: '#f3722c' },
+        wav: { cls: 'fas fa-file-audio', color: '#f3722c' },
+        mp4: { cls: 'fas fa-file-video', color: '#277da1' },
+        zip: { cls: 'fas fa-file-archive', color: '#ff9800' },
+        rar: { cls: 'fas fa-file-archive', color: '#ff9800' },
+        js:  { cls: 'fas fa-file-code', color: '#f0db4f' },
+        php: { cls: 'fas fa-file-code', color: '#8892BF' },
+        html:{ cls: 'fas fa-file-code', color: '#e44d26' },
+        css: { cls: 'fas fa-file-code', color: '#264de4' },
+        sql: { cls: 'fas fa-database', color: '#00b4d8' },
+        exe: { cls: 'fas fa-cog', color: '#607d8b' },
+        dll: { cls: 'fas fa-puzzle-piece', color: '#9575cd' },
+    };
+    return map[ext] || { cls: 'fas fa-file', color: '#90a4ae' };
+}
+
+// ── INIT ──
+function init() {
+    renderDrivesGrid();
+    renderFoldersGrid();
+    
+    // Check for path in URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const path = urlParams.get('path');
+    if (path) {
+        navigate(path);
+    } else {
+        updateAddressBar();
+        updateNavButtons();
+    }
+}
+
+function renderDrivesGrid() {
+    const grid = document.getElementById('drives-grid');
+    grid.innerHTML = '';
+    drives.forEach(d => {
+        const freeGB = d.totalGB - d.usedGB;
+        const pct = Math.round((d.usedGB / d.totalGB) * 100);
+        const barClass = pct >= 90 ? 'bar-critical' : pct >= 75 ? 'bar-warning' : 'bar-normal';
+
+        const card = document.createElement('div');
+        card.className = 'drive-card';
+        card.dataset.driveId = d.id;
+        card.innerHTML = `
+            <i class="${d.icon} drive-icon" style="color:${d.iconColor};"></i>
+            <div class="drive-info">
+                <div class="drive-name">${d.label} (${d.letter})</div>
+                <div class="storage-bar-bg"><div class="storage-bar-fill ${barClass}" style="width:${pct}%"></div></div>
+                <div class="drive-space">${freeGB.toFixed(1)} GB free of ${d.totalGB.toFixed(1)} GB</div>
+            </div>
+        `;
+        card.addEventListener('click', (e) => { e.stopPropagation(); selectDriveCard(card, d); });
+        card.addEventListener('dblclick', () => openDrive(d.id));
+        card.addEventListener('contextmenu', (e) => { e.preventDefault(); showDriveCtx(e, d); });
+        grid.appendChild(card);
+    });
+}
+
+function renderFoldersGrid() {
+    const grid = document.getElementById('folders-grid');
+    grid.innerHTML = '';
+    folders.forEach(f => {
+        const card = document.createElement('div');
+        card.className = 'folder-card';
+        card.innerHTML = `
+            <i class="${f.icon}" style="color:${f.iconColor};"></i>
+            <div class="folder-name">${f.name}</div>
+        `;
+        card.addEventListener('click', (e) => { e.stopPropagation(); selectFolderCard(card); });
+        card.addEventListener('dblclick', () => navigate(f.path));
+        card.addEventListener('contextmenu', (e) => { e.preventDefault(); showFolderCtx(e, f); });
+        grid.appendChild(card);
+    });
+}
+
+// ── NAVIGATION ──
+function navigate(path) {
+    if (currentPath !== null) {
+        historyStack.push(currentPath);
+        forwardStack = [];
+    }
+    currentPath = path;
+    selectedItems.clear();
+    loadFolder(path);
+    updateNavButtons();
+    updateAddressBar();
+    updateRibbonState();
+    updateSidebarActive();
+    clearSearch();
+}
+
+function navBack() {
+    if (!historyStack.length) return;
+    forwardStack.push(currentPath);
+    currentPath = historyStack.pop();
+    selectedItems.clear();
+    if (currentPath === null) { goHomeInternal(); }
+    else { loadFolder(currentPath); }
+    updateNavButtons();
+    updateAddressBar();
+    updateRibbonState();
+    updateSidebarActive();
+}
+
+function navForward() {
+    if (!forwardStack.length) return;
+    historyStack.push(currentPath);
+    currentPath = forwardStack.pop();
+    selectedItems.clear();
+    if (currentPath === null) { goHomeInternal(); }
+    else { loadFolder(currentPath); }
+    updateNavButtons();
+    updateAddressBar();
+    updateRibbonState();
+    updateSidebarActive();
+}
+
+function navUp() {
+    if (currentPath === null) return;
+    if (!currentPath) {
+        // at root (Desktop), go to This PC
+        historyStack.push(currentPath);
+        forwardStack = [];
+        currentPath = null;
+        goHomeInternal();
+        updateNavButtons();
+        updateAddressBar();
+        updateRibbonState();
+        return;
+    }
+    const parts = currentPath.split('/');
+    parts.pop();
+    navigate(parts.join('/'));
+}
+
+function goHome() {
+    if (currentPath !== null) {
+        historyStack.push(currentPath);
+        forwardStack = [];
+    }
+    currentPath = null;
+    goHomeInternal();
+    updateNavButtons();
+    updateAddressBar();
+    updateRibbonState();
+    updateSidebarActive();
+    clearSearch();
+}
+
+function goHomeInternal() {
+    document.getElementById('home-view').classList.remove('hidden');
+    document.getElementById('file-view').classList.remove('active');
+    selectedItems.clear();
+    updateStatusBar();
+}
+
+function openDrive(id) {
+    // drives map to virtual folders in our FS
+    const drivePathMap = { C: '_drive_c', D: '_drive_d', USB: '_drive_usb', CDROM: '_drive_cdrom' };
+    // We'll just show a virtual "drive" view
+    showDriveContent(id);
+}
+
+function showDriveContent(driveId) {
+    const path = `Drive_${driveId}`;
+    navigate(path);
+}
+
+function sidebarNav(el, path) {
+    navigate(path);
+}
+
+async function loadFolder(path) {
+    if (path === 'RecycleBin') {
+        loadRecycleBin();
+        return;
+    }
+    document.getElementById('tab-recycle')?.remove();
+    document.getElementById('home-view').classList.add('hidden');
+    const fileView = document.getElementById('file-view');
+    fileView.classList.add('active');
+    const fileGrid = document.getElementById('file-grid');
+    fileGrid.innerHTML = '<div class="empty-folder"><i class="fas fa-spinner fa-spin"></i> Loading...</div>';
+    updateStatusBar();
+
+    try {
+        const res = await fs.list(path);
+        fileGrid.innerHTML = '';
+        if (res.success) {
+            let filesToRender = res.files;
+            
+            // Extension filtering based on folder path
+            if (path === 'Videos') {
+                const exts = ['mp4', 'avi', 'mkv', 'webm', 'mov'];
+                filesToRender = filesToRender.filter(f => f.is_dir || exts.includes(f.name.split('.').pop().toLowerCase()));
+            } else if (path === 'Music') {
+                const exts = ['mp3', 'wav', 'flac', 'ogg'];
+                filesToRender = filesToRender.filter(f => f.is_dir || exts.includes(f.name.split('.').pop().toLowerCase()));
+            } else if (path === 'Pictures') {
+                const exts = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg'];
+                filesToRender = filesToRender.filter(f => f.is_dir || exts.includes(f.name.split('.').pop().toLowerCase()));
+            }
+
+            if (filesToRender.length === 0) {
+                fileGrid.innerHTML = '<div class="empty-folder"><i class="fas fa-folder-open" style="font-size:3rem;color:#ccc;display:block;margin-bottom:10px;"></i>This folder is empty</div>';
+                updateStatusBarCount(0);
+                return;
+            }
+            filesToRender.forEach(f => renderFileItem(f, fileGrid, path));
+            updateStatusBarCount(filesToRender.length);
+        } else {
+            // Show empty with error — common for virtual drive paths
+            fileGrid.innerHTML = `<div class="empty-folder"><i class="fas fa-folder-open" style="font-size:3rem;color:#ccc;display:block;margin-bottom:10px;"></i>This folder is empty</div>`;
+            updateStatusBarCount(0);
+        }
+    } catch(e) {
+        fileGrid.innerHTML = `<div class="empty-folder" style="color:#c00;"><i class="fas fa-exclamation-circle"></i> Error loading folder</div>`;
+    }
+
+    // Click on empty area deselects
+    fileGrid.addEventListener('click', () => {
+        document.querySelectorAll('.file-item').forEach(n => n.classList.remove('selected'));
+        selectedItems.clear();
+        updateRibbonState();
+        updateStatusBar();
+    }, { once: true });
+}
+
+function renderFileItem(f, container, folderPath) {
+    const { cls, color } = getFileIcon(f.name, f.is_dir);
+    const el = document.createElement('div');
+    el.className = 'file-item';
+    el.dataset.name = f.name;
+    el.dataset.isDir = f.is_dir ? '1' : '0';
+    el.innerHTML = `<i class="${cls}" style="color:${color};"></i><div class="item-name">${f.name}</div>`;
+
+    el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (!e.ctrlKey && !e.shiftKey) {
+            document.querySelectorAll('.file-item').forEach(n => { n.classList.remove('selected'); });
+            selectedItems.clear();
+        }
+        el.classList.toggle('selected');
+        if (el.classList.contains('selected')) selectedItems.add(f.name);
+        else selectedItems.delete(f.name);
+        updateRibbonState();
+        updateStatusBar();
+    });
+
+    el.addEventListener('dblclick', () => {
+        if (f.is_dir) {
+            navigate(folderPath ? folderPath + '/' + f.name : f.name);
+        } else {
+            openFile(f.name, folderPath);
+        }
+    });
+
+    el.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        // Select this item if not already selected
+        if (!selectedItems.has(f.name)) {
+            document.querySelectorAll('.file-item').forEach(n => n.classList.remove('selected'));
+            selectedItems.clear();
+            el.classList.add('selected');
+            selectedItems.add(f.name);
+            updateRibbonState();
+            updateStatusBar();
+        }
+        showFileCtx(e, f, folderPath);
+    });
+
+    container.appendChild(el);
+}
+
+function openFile(name, folderPath) {
+    const ext = name.split('.').pop().toLowerCase();
+    const textTypes = ['txt','md','js','php','html','css','sql','json','xml','csv','log','ini','cfg','bat'];
+    if (textTypes.includes(ext)) {
+        const path = folderPath ? folderPath + '/' + name : name;
+        windowManager.createWindow({
+            name: 'Notepad — ' + name,
+            icon: 'fas fa-file-alt',
+            url: 'apps/notepad.html?v=' + Date.now() + '&path=' + encodeURIComponent(path),
+            width: 700, height: 500
+        });
+    } else if (['jpg','jpeg','png','gif','bmp','webp','svg'].includes(ext)) {
+        alert('Image viewer coming soon!');
+    } else if (['mp3','wav','ogg','flac'].includes(ext)) {
+        alert('Media player coming soon!');
+    } else {
+        alert(`Cannot open: ${name}\nFile type .${ext} has no associated application.`);
+    }
+}
+
+function refreshView() {
+    if (currentPath === null) {
+        renderDrivesGrid();
+        renderFoldersGrid();
+    } else {
+        loadFolder(currentPath);
+    }
+    clearSearch();
+}
+
+// ── ADDRESS BAR ──
+function updateAddressBar() {
+    const bar = document.getElementById('address-bar');
+    if (currentPath === null) {
+        bar.innerHTML = `<span class="crumb" onclick="goHome()">This PC</span>`;
+        return;
+    }
+    const parts = currentPath.split('/').filter(p => p);
+    let html = `<span class="crumb" onclick="goHome()">This PC</span>`;
+    let built = '';
+    parts.forEach((p, i) => {
+        built = built ? built + '/' + p : p;
+        const snap = built;
+        html += `<span class="sep">›</span><span class="crumb" onclick="navigate('${snap}')">${p}</span>`;
+    });
+    bar.innerHTML = html;
+}
+
+// ── NAV BUTTONS ──
+function updateNavButtons() {
+    const back = document.getElementById('btn-back');
+    const fwd = document.getElementById('btn-forward');
+    const up = document.getElementById('btn-up');
+    back.classList.toggle('disabled', historyStack.length === 0);
+    fwd.classList.toggle('disabled', forwardStack.length === 0);
+    up.classList.toggle('disabled', currentPath === null);
+}
+
+// ── SIDEBAR ACTIVE ──
+function updateSidebarActive() {
+    document.querySelectorAll('.sidebar-item').forEach(el => el.classList.remove('active'));
+    if (currentPath === null) return;
+    const match = document.querySelector(`.sidebar-item[data-path="${currentPath}"]`);
+    if (match) match.classList.add('active');
+}
+
+// ── RIBBON STATE ──
+function updateRibbonState() {
+    const hasSelection = selectedItems.size > 0;
+    document.getElementById('rb-cut')?.classList.toggle('disabled', !hasSelection);
+    document.getElementById('rb-copy')?.classList.toggle('disabled', !hasSelection);
+    document.getElementById('rb-rename')?.classList.toggle('disabled', selectedItems.size !== 1);
+    document.getElementById('rb-delete')?.classList.toggle('disabled', !hasSelection);
+    document.getElementById('rb-open')?.classList.toggle('disabled', !hasSelection);
+    document.getElementById('rb-paste')?.classList.toggle('disabled', clipboard === null);
+    document.getElementById('rb-newfolder')?.classList.toggle('disabled', currentPath === null);
+}
+
+// ── STATUS BAR ──
+function updateStatusBar() {
+    const count = document.getElementById('sb-count');
+    const selEl = document.getElementById('sb-selected');
+    const selText = document.getElementById('sb-sel-text');
+    if (selectedItems.size > 0) {
+        selEl.style.display = 'flex';
+        selText.innerText = `${selectedItems.size} item${selectedItems.size > 1 ? 's' : ''} selected`;
+    } else {
+        selEl.style.display = 'none';
+    }
+}
+
+function updateStatusBarCount(n) {
+    document.getElementById('sb-count').innerText = `${n} item${n !== 1 ? 's' : ''}`;
+}
+
+// ── FILE OPERATIONS ──
+async function createNewFolder() {
+    if (currentPath === null) return;
+    const name = prompt('Folder name:', 'New folder');
+    if (!name) return;
+    const newPath = currentPath ? currentPath + '/' + name : name;
+    const res = await fs.mkdir(newPath);
+    if (res && res.success) {
+        loadFolder(currentPath);
+    } else {
+        // Add folder visually (even if FS fails, for UX)
+        const fileGrid = document.getElementById('file-grid');
+        const f = { name, is_dir: true };
+        renderFileItem(f, fileGrid, currentPath);
+        fileGrid.querySelector('.empty-folder')?.remove();
+        const items = fileGrid.querySelectorAll('.file-item');
+        updateStatusBarCount(items.length);
+    }
+}
+
+let shiftDown = false;
+document.addEventListener('keydown', (e) => { if (e.key === 'Shift') shiftDown = true; });
+document.addEventListener('keyup', (e) => { if (e.key === 'Shift') shiftDown = false; });
+
+async function deleteSelected() {
+    if (!selectedItems.size || currentPath === null) return;
+    if (currentPath === 'RecycleBin') {
+        alert('To permanently delete items, use "Empty Recycle Bin" by right-clicking.');
+        return;
+    }
+    const names = [...selectedItems];
+    const permanent = shiftDown;
+    const msg = names.length === 1
+        ? (permanent ? `Permanently delete "${names[0]}"?` : `Move "${names[0]}" to Recycle Bin?`)
+        : (permanent ? `Permanently delete ${names.length} items?` : `Move ${names.length} items to Recycle Bin?`);
+    if (!confirm(msg)) return;
+    for (const name of names) {
+        const target = currentPath ? currentPath + '/' + name : name;
+        const res = await fs.delete(target, permanent);
+        if (!res.success) {
+            alert(`Error deleting "${name}": ${res.error}`);
+        }
+    }
+    loadFolder(currentPath);
+}
+
+function renameSelected() {
+    if (selectedItems.size !== 1) return;
+    const name = [...selectedItems][0];
+    const el = document.querySelector(`.file-item[data-name="${CSS.escape(name)}"]`);
+    if (!el) return;
+    const nameDiv = el.querySelector('.item-name');
+    const old = nameDiv.innerText;
+    nameDiv.innerHTML = `<input class="rename-input" value="${old}" />`;
+    const input = nameDiv.querySelector('input');
+    input.focus(); input.select();
+    const commit = async () => {
+        const newName = input.value.trim();
+        if (newName && newName !== old) {
+            const src = currentPath ? currentPath + '/' + old : old;
+            const dst = currentPath ? currentPath + '/' + newName : newName;
+            await fs.rename?.(src, dst).catch(() => {});
+            loadFolder(currentPath);
+        } else {
+            nameDiv.innerText = old;
+        }
+    };
+    input.addEventListener('blur', commit);
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') commit();
+        if (e.key === 'Escape') { nameDiv.innerText = old; }
+    });
+}
+
+function selectAll() {
+    document.querySelectorAll('.file-item').forEach(el => {
+        el.classList.add('selected');
+        selectedItems.add(el.dataset.name);
+    });
+    updateRibbonState();
+    updateStatusBar();
+}
+
+function openSelected() {
+    if (!selectedItems.size) return;
+    const name = [...selectedItems][0];
+    const el = document.querySelector(`.file-item[data-name="${CSS.escape(name)}"]`);
+    if (!el) return;
+    if (el.dataset.isDir === '1') {
+        navigate(currentPath ? currentPath + '/' + name : name);
+    } else {
+        openFile(name, currentPath);
+    }
+}
+
+// ── SEARCH ──
+function handleSearch(query) {
+    clearTimeout(searchTimeout);
+    if (!query) { refreshView(); return; }
+    searchTimeout = setTimeout(() => searchFiles(query), 300);
+}
+
+async function searchFiles(query) {
+    if (currentPath === null) return;
+    const res = await fs.list(currentPath);
+    if (!res.success) return;
+    const filtered = res.files.filter(f => f.name.toLowerCase().includes(query.toLowerCase()));
+    const fileGrid = document.getElementById('file-grid');
+    fileGrid.innerHTML = '';
+    if (!filtered.length) {
+        fileGrid.innerHTML = `<div class="empty-folder">No results for "<strong>${query}</strong>"</div>`;
+        updateStatusBarCount(0);
+        return;
+    }
+    filtered.forEach(f => renderFileItem(f, fileGrid, currentPath));
+    updateStatusBarCount(filtered.length);
+}
+
+function clearSearch() {
+    document.getElementById('search-input').value = '';
+}
+
+// ── CONTEXT MENUS ──
+function showFileCtx(e, f, folderPath) {
+    removeCtx();
+    const menu = document.createElement('div');
+    menu.className = 'ctx-menu';
+    menu.style.left = e.clientX + 'px';
+    menu.style.top = e.clientY + 'px';
+    menu.innerHTML = `
+        <div class="ctx-item" onclick="openSelected()"><i class="fas fa-folder-open"></i> Open</div>
+        ${f.is_dir ? '' : `<div class="ctx-item" onclick="openFile('${f.name}','${folderPath}')"><i class="fas fa-external-link-alt"></i> Open with...</div>`}
+        <div class="ctx-sep"></div>
+        <div class="ctx-item"><i class="fas fa-cut"></i> Cut</div>
+        <div class="ctx-item"><i class="fas fa-copy"></i> Copy</div>
+        <div class="ctx-sep"></div>
+        <div class="ctx-item" onclick="renameSelected()"><i class="fas fa-pen"></i> Rename</div>
+        <div class="ctx-item" onclick="deleteSelected()"><i class="fas fa-trash-alt" style="color:#c00;"></i> Delete</div>
+        <div class="ctx-sep"></div>
+        <div class="ctx-item"><i class="fas fa-info-circle"></i> Properties</div>
+    `;
+    document.body.appendChild(menu);
+    setTimeout(() => document.addEventListener('click', removeCtx, { once: true }), 10);
+}
+
+function showDriveCtx(e, d) {
+    removeCtx();
+    const menu = document.createElement('div');
+    menu.className = 'ctx-menu';
+    menu.style.left = e.clientX + 'px';
+    menu.style.top = e.clientY + 'px';
+    menu.innerHTML = `
+        <div class="ctx-item" onclick="openDrive('${d.id}')"><i class="fas fa-folder-open"></i> Open</div>
+        <div class="ctx-item" onclick="openDrive('${d.id}')"><i class="fas fa-search"></i> Explore</div>
+        <div class="ctx-sep"></div>
+        <div class="ctx-item" onclick="showDriveProperties('${d.id}')"><i class="fas fa-info-circle"></i> Properties</div>
+    `;
+    document.body.appendChild(menu);
+    setTimeout(() => document.addEventListener('click', removeCtx, { once: true }), 10);
+}
+
+function showFolderCtx(e, f) {
+    removeCtx();
+    const menu = document.createElement('div');
+    menu.className = 'ctx-menu';
+    menu.style.left = e.clientX + 'px';
+    menu.style.top = e.clientY + 'px';
+    
+    let html = `
+        <div class="ctx-item" onclick="navigate('${f.path}')"><i class="fas fa-folder-open"></i> Open</div>
+        <div class="ctx-item"><i class="fas fa-thumbtack"></i> Pin to Quick access</div>
+    `;
+    
+    if (f.path === 'RecycleBin') {
+        html += `
+        <div class="ctx-sep"></div>
+        <div class="ctx-item" onclick="emptyRecycleBin()"><i class="fas fa-trash" style="color:#c00;"></i> Empty Recycle Bin</div>
+        <div class="ctx-item" onclick="showBinProperties()"><i class="fas fa-cog"></i> Settings</div>
+        `;
+    }
+    html += `
+        <div class="ctx-sep"></div>
+        <div class="ctx-item"><i class="fas fa-info-circle"></i> Properties</div>
+    `;
+    menu.innerHTML = html;
+    
+    document.body.appendChild(menu);
+    setTimeout(() => document.addEventListener('click', removeCtx, { once: true }), 10);
+}
+
+function removeCtx() {
+    document.querySelectorAll('.ctx-menu').forEach(m => m.remove());
+}
+
+// ── DRIVE PROPERTIES DIALOG ──
+function showDriveProperties(id) {
+    const d = drives.find(x => x.id === id);
+    if (!d) return;
+    const freeGB = (d.totalGB - d.usedGB).toFixed(2);
+    const pct = Math.round((d.usedGB / d.totalGB) * 100);
+    alert(`Properties: ${d.label} (${d.letter})\n\nFile System: NTFS\nUsed Space: ${d.usedGB.toFixed(2)} GB (${pct}%)\nFree Space: ${freeGB} GB\nCapacity: ${d.totalGB.toFixed(2)} GB`);
+}
+
+// ── DRIVE CARD SELECTION ──
+function selectDriveCard(card, d) {
+    document.querySelectorAll('.drive-card').forEach(c => c.classList.remove('selected'));
+    document.querySelectorAll('.folder-card').forEach(c => c.classList.remove('selected'));
+    card.classList.add('selected');
+    document.getElementById('sb-selected').style.display = 'flex';
+    document.getElementById('sb-sel-text').innerText = `${d.label} (${d.letter}) — ${(d.totalGB - d.usedGB).toFixed(1)} GB free`;
+}
+
+function selectFolderCard(card) {
+    document.querySelectorAll('.drive-card').forEach(c => c.classList.remove('selected'));
+    document.querySelectorAll('.folder-card').forEach(c => c.classList.remove('selected'));
+    card.classList.toggle('selected');
+}
+
+// ── RIBBON TABS ──
+function switchTab(tab) {
+    document.querySelectorAll('.ribbon-tab').forEach(t => t.classList.remove('active'));
+    document.getElementById('tab-' + tab)?.classList.add('active');
+    const body = document.getElementById('ribbon-body');
+    if (tab === 'computer') {
+        body.innerHTML = `
+            <div class="ribbon-btn" onclick="refreshView()"><i class="fas fa-sync-alt"></i><span>Refresh</span></div>
+            <div class="ribbon-sep"></div>
+            <div class="ribbon-btn" onclick="goHome()"><i class="fas fa-desktop"></i><span>This PC</span></div>
+            <div class="ribbon-btn" onclick="showSystemProperties()"><i class="fas fa-info-circle"></i><span>System<br>Properties</span></div>
+            <div class="ribbon-sep"></div>
+            <div class="ribbon-btn" onclick="openNetworkDrive()"><i class="fas fa-network-wired"></i><span>Map<br>Network</span></div>
+            <div class="ribbon-btn" onclick="showDisconnectMsg()"><i class="fas fa-plug"></i><span>Disconnect</span></div>
+        `;
+    } else if (tab === 'view') {
+        body.innerHTML = `
+            <div class="ribbon-btn"><i class="fas fa-th-large"></i><span>Large<br>Icons</span></div>
+            <div class="ribbon-btn"><i class="fas fa-th"></i><span>Medium<br>Icons</span></div>
+            <div class="ribbon-btn"><i class="fas fa-list"></i><span>List</span></div>
+            <div class="ribbon-btn"><i class="fas fa-th-list"></i><span>Details</span></div>
+            <div class="ribbon-sep"></div>
+            <div class="ribbon-btn"><i class="fas fa-sort-alpha-down"></i><span>Sort by<br>Name</span></div>
+            <div class="ribbon-btn"><i class="fas fa-sort-amount-down"></i><span>Sort by<br>Size</span></div>
+            <div class="ribbon-sep"></div>
+            <div class="ribbon-btn"><i class="fas fa-eye-slash"></i><span>Hidden<br>Items</span></div>
+        `;
+    } else if (tab === 'share') {
+        body.innerHTML = `
+            <div class="ribbon-btn disabled"><i class="fas fa-share"></i><span>Share</span></div>
+            <div class="ribbon-btn disabled"><i class="fas fa-envelope"></i><span>Email</span></div>
+            <div class="ribbon-btn disabled"><i class="fas fa-compress-alt"></i><span>Zip</span></div>
+            <div class="ribbon-sep"></div>
+            <div class="ribbon-btn disabled"><i class="fas fa-print"></i><span>Print</span></div>
+            <div class="ribbon-btn disabled"><i class="fas fa-fax"></i><span>Fax</span></div>
+        `;
+    } else if (tab === 'recycle') {
+        body.innerHTML = `
+            <div class="ribbon-btn" onclick="emptyRecycleBin()"><i class="fas fa-trash" style="color:#c00;"></i><span>Empty<br>Recycle Bin</span></div>
+            <div class="ribbon-btn" onclick="restoreSelectedBinItems()"><i class="fas fa-trash-restore" style="color:#0078d7;"></i><span>Restore All<br>Items</span></div>
+            <div class="ribbon-sep"></div>
+            <div class="ribbon-btn" onclick="showBinProperties()"><i class="fas fa-cog"></i><span>Recycle Bin<br>Settings</span></div>
+        `;
+    } else {
+        // home - restore
+        body.innerHTML = `
+            <div class="ribbon-btn" id="rb-newfolder" onclick="createNewFolder()" title="New Folder">
+                <i class="fas fa-folder-plus"></i><span>New<br>Folder</span>
+            </div>
+            <div class="ribbon-sep"></div>
+            <div class="ribbon-btn disabled" id="rb-cut"><i class="fas fa-cut"></i><span>Cut</span></div>
+            <div class="ribbon-btn disabled" id="rb-copy"><i class="fas fa-copy"></i><span>Copy</span></div>
+            <div class="ribbon-btn disabled" id="rb-paste"><i class="fas fa-paste"></i><span>Paste</span></div>
+            <div class="ribbon-sep"></div>
+            <div class="ribbon-btn disabled" id="rb-rename" onclick="renameSelected()"><i class="fas fa-pen"></i><span>Rename</span></div>
+            <div class="ribbon-btn disabled" id="rb-delete" onclick="deleteSelected()"><i class="fas fa-trash-alt"></i><span>Delete</span></div>
+            <div class="ribbon-sep"></div>
+            <div class="ribbon-btn" id="rb-selall" onclick="selectAll()"><i class="fas fa-check-double"></i><span>Select<br>All</span></div>
+            <div class="ribbon-btn disabled" id="rb-open" onclick="openSelected()"><i class="fas fa-folder-open"></i><span>Open</span></div>
+            <div class="ribbon-sep"></div>
+            <div class="ribbon-btn" onclick="goHome()"><i class="fas fa-desktop"></i><span>This PC</span></div>
+        `;
+        updateRibbonState();
+    }
+}
+
+// ── SIDEBAR COLLAPSE ──
+function toggleSection(id) {
+    const items = document.getElementById(id + '-items');
+    const header = items.previousElementSibling;
+    if (!items || !header) return;
+    items.style.display = items.style.display === 'none' ? '' : 'none';
+    header.classList.toggle('collapsed');
+}
+
+// ── SYSTEM FUNCTIONS ──
+function showSystemProperties() {
+    windowManager.createWindow({ name: 'Settings', icon: 'fas fa-cog', url: 'apps/sysinfo.html', width: 700, height: 500 });
+}
+
+function openNetworkDrive() { alert('Map Network Drive: Feature not available in simulation.'); }
+function showDisconnectMsg() { alert('No network drives to disconnect.'); }
+function showNetworkMsg() { alert('Network location: DESKTOP-WEBOS\nStatus: Connected'); }
+
+// ── KEYBOARD SHORTCUTS ──
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'F5') { e.preventDefault(); refreshView(); }
+    if (e.key === 'Backspace' && document.activeElement.tagName !== 'INPUT') { e.preventDefault(); navBack(); }
+    if (e.key === 'Delete' && selectedItems.size) { e.preventDefault(); deleteSelected(); }
+    if (e.key === 'F2' && selectedItems.size === 1) { e.preventDefault(); renameSelected(); }
+    if (e.ctrlKey && e.key === 'a') { e.preventDefault(); selectAll(); }
+    if (e.ctrlKey && e.key === 'n') { e.preventDefault(); createNewFolder(); }
+});
+
+// ── DESKTOP RIGHT-CLICK ──
+document.getElementById('content-area').addEventListener('contextmenu', (e) => {
+    if (e.target.closest('.file-item') || e.target.closest('.drive-card') || e.target.closest('.folder-card')) return;
+    e.preventDefault();
+    removeCtx();
+    const menu = document.createElement('div');
+    menu.className = 'ctx-menu';
+    menu.style.left = e.clientX + 'px';
+    menu.style.top = e.clientY + 'px';
+    
+    let extra = '';
+    if (currentPath === 'RecycleBin') {
+        extra = `<div class="ctx-item" onclick="emptyRecycleBin()"><i class="fas fa-trash" style="color:#c00;"></i> Empty Recycle Bin</div>
+                 <div class="ctx-item" onclick="showBinProperties()"><i class="fas fa-cog"></i> Bin Settings</div><div class="ctx-sep"></div>`;
+    } else if (currentPath !== null) {
+        extra = `<div class="ctx-item" onclick="createNewFolder()"><i class="fas fa-folder-plus"></i> New Folder</div><div class="ctx-sep"></div>`;
+    }
+
+    menu.innerHTML = `
+        <div class="ctx-item" onclick="refreshView()"><i class="fas fa-sync-alt"></i> Refresh</div>
+        <div class="ctx-sep"></div>
+        ${extra}
+        <div class="ctx-item" onclick="goHome()"><i class="fas fa-desktop"></i> This PC</div>
+    `;
+    document.body.appendChild(menu);
+    setTimeout(() => document.addEventListener('click', removeCtx, { once: true }), 10);
+});
+
+// ── RECYCLE BIN FUNCTIONS ──
+async function loadRecycleBin() {
+    document.getElementById('home-view').classList.add('hidden');
+    const fileView = document.getElementById('file-view');
+    fileView.classList.add('active');
+    const fileGrid = document.getElementById('file-grid');
+    fileGrid.innerHTML = '<div class="empty-folder"><i class="fas fa-spinner fa-spin"></i> Loading...</div>';
+    updateStatusBar();
+
+    // Update Ribbon for Recycle Bin
+    const ribbonTabs = document.querySelector('.ribbon-tabs');
+    if (!document.getElementById('tab-recycle')) {
+        const recycleTab = document.createElement('div');
+        recycleTab.className = 'ribbon-tab';
+        recycleTab.id = 'tab-recycle';
+        recycleTab.innerText = 'Recycle Bin Tools';
+        recycleTab.onclick = () => switchTab('recycle');
+        ribbonTabs.appendChild(recycleTab);
+    }
+    switchTab('recycle');
+
+    try {
+        const res = await fs.getBinItems('');
+        fileGrid.innerHTML = '';
+        if (res.success && res.items.length > 0) {
+            res.items.forEach(item => renderBinItem(item, fileGrid));
+            updateStatusBarCount(res.items.length);
+        } else {
+            fileGrid.innerHTML = '<div class="empty-folder"><i class="fas fa-trash-restore" style="font-size:3rem;color:#ccc;display:block;margin-bottom:10px;"></i>Recycle Bin is empty</div>';
+            updateStatusBarCount(0);
+        }
+    } catch(e) {
+        fileGrid.innerHTML = `<div class="empty-folder" style="color:#c00;"><i class="fas fa-exclamation-circle"></i> Error loading Recycle Bin</div>`;
+    }
+    fileGrid.addEventListener('click', () => {
+        document.querySelectorAll('.file-item').forEach(n => n.classList.remove('selected'));
+        selectedItems.clear();
+        updateRibbonState();
+        updateStatusBar();
+    }, { once: true });
+}
+
+function renderBinItem(item, container) {
+    const { cls, color } = getFileIcon(item.originalName, item.is_dir);
+    const el = document.createElement('div');
+    el.className = 'file-item bin-item';
+    el.dataset.uuid = item.uuid;
+    el.dataset.drive = item.drive;
+    const sizeStr = item.size > 0 ? (item.size / 1024).toFixed(1) + ' KB' : '';
+    el.title = `Original: ${item.originalPath}\nDeleted: ${new Date(item.dateDeleted * 1000).toLocaleString()}\nSize: ${sizeStr}`;
+    el.innerHTML = `<i class="${cls}" style="color:${color};"></i><div class="item-name">${item.originalName}</div>`;
+
+    el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (!e.ctrlKey && !e.shiftKey) {
+            document.querySelectorAll('.file-item').forEach(n => n.classList.remove('selected'));
+            selectedItems.clear();
+        }
+        el.classList.toggle('selected');
+        if (el.classList.contains('selected')) selectedItems.add(item.uuid);
+        else selectedItems.delete(item.uuid);
+        updateRibbonState();
+        updateStatusBar();
+    });
+
+    el.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        if (!selectedItems.has(item.uuid)) {
+            document.querySelectorAll('.file-item').forEach(n => n.classList.remove('selected'));
+            selectedItems.clear();
+            el.classList.add('selected');
+            selectedItems.add(item.uuid);
+            updateRibbonState();
+            updateStatusBar();
+        }
+        showBinCtx(e, item);
+    });
+
+    container.appendChild(el);
+}
+
+function showBinCtx(e, item) {
+    removeCtx();
+    const menu = document.createElement('div');
+    menu.className = 'ctx-menu';
+    menu.style.left = e.clientX + 'px';
+    menu.style.top = e.clientY + 'px';
+    menu.innerHTML = `
+        <div class="ctx-item" onclick="restoreSelectedBinItems()"><i class="fas fa-trash-restore"></i> Restore</div>
+    `;
+    document.body.appendChild(menu);
+    setTimeout(() => document.addEventListener('click', removeCtx, { once: true }), 10);
+}
+
+async function restoreSelectedBinItems() {
+    if (currentPath !== 'RecycleBin') return;
+    const uuids = [...selectedItems];
+    for (const uuid of uuids) {
+        const el = document.querySelector(`.bin-item[data-uuid="${uuid}"]`);
+        if (el) {
+            const drive = el.dataset.drive;
+            await fs.restoreBin(uuid, drive);
+        }
+    }
+    loadRecycleBin();
+}
+
+async function emptyRecycleBin() {
+    if (confirm("Are you sure you want to permanently delete all items in the Recycle Bin?")) {
+        await fs.emptyBin('');
+        if (currentPath === 'RecycleBin') loadRecycleBin();
+    }
+}
+
+async function showBinProperties() {
+    const res = await fs.getBinConfig();
+    const config = res.config || { limitMB: 100, bypassRecycleBin: false };
+    
+    const limit = prompt("Enter maximum Recycle Bin size in MB:", config.limitMB);
+    if (limit === null) return;
+    
+    const bypassStr = prompt("Bypass Recycle Bin entirely? (yes/no)", config.bypassRecycleBin ? "yes" : "no");
+    if (bypassStr === null) return;
+    
+    const bypass = bypassStr.toLowerCase() === 'yes' || bypassStr.toLowerCase() === 'y' || bypassStr.toLowerCase() === 'true';
+    
+    await fs.setBinConfig(parseInt(limit) || 100, bypass);
+    alert("Recycle Bin settings saved.");
+}
+
+
+// ── START ──
+init();
+</script>
+</body>
+</html>

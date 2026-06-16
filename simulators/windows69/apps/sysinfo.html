@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>System Settings</title>
+    <link rel="stylesheet" href="../css/fontawesome/css/all.min.css">
+    <style>
+        body, html { margin: 0; padding: 0; height: 100%; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #fff; color: #333; }
+        .container { display: flex; height: 100%; }
+        .sidebar { width: 250px; background: #f3f3f3; padding: 20px 0; border-right: 1px solid #e5e5e5; }
+        .sidebar-item { padding: 10px 20px; font-size: 0.95rem; cursor: pointer; display: flex; align-items: center; }
+        .sidebar-item i { width: 20px; text-align: center; margin-right: 15px; color: #0078D7; }
+        .sidebar-item:hover { background: #e5e5e5; }
+        .sidebar-item.active { background: #e6f3fb; position: relative; }
+        .sidebar-item.active::before { content:''; position: absolute; left: 0; top: 10%; height: 80%; width: 4px; background: #0078D7; }
+        .content { flex: 1; padding: 30px 40px; overflow-y: auto; }
+        h1 { font-weight: 300; margin-top: 0; margin-bottom: 30px; }
+        .spec-item { display: flex; border-bottom: 1px solid #eee; padding: 15px 0; }
+        .spec-label { width: 200px; font-weight: 600; color: #555; }
+        .spec-value { flex: 1; color: #111; }
+        .logo-area { display: flex; align-items: center; margin-bottom: 40px; }
+        .logo-area div { margin-left: 20px; }
+        .logo-area h2 { margin: 0; font-size: 1.5rem; font-weight: 400; }
+        .logo-area p { margin: 5px 0 0; color: #666; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar">
+            <div class="sidebar-item active"><i class="fas fa-laptop"></i> About</div>
+            <div class="sidebar-item"><i class="fas fa-tv"></i> Display</div>
+            <div class="sidebar-item"><i class="fas fa-volume-up"></i> Sound</div>
+            <div class="sidebar-item"><i class="fas fa-wifi"></i> Network</div>
+            <div class="sidebar-item"><i class="fas fa-shield-alt"></i> Security</div>
+            <div class="sidebar-item" onclick="triggerBSOD()" style="color:red;"><i class="fas fa-bomb"></i> Crash System (Test)</div>
+        </div>
+        <div class="content">
+            <h1>About</h1>
+            
+            <div class="logo-area">
+                <i class="fab fa-windows" style="font-size: 4rem; color: #0078D7;"></i>
+                <div>
+                    <h2>Windows 10 Web OS Simulator</h2>
+                    <p>Powered by HTML, CSS, JS, and PHP</p>
+                </div>
+            </div>
+            
+            <h3 style="font-weight: 400; border-bottom: 1px solid #ccc; padding-bottom: 10px; margin-bottom: 20px;">Device specifications</h3>
+            
+            <div class="spec-item">
+                <div class="spec-label">Device name</div>
+                <div class="spec-value">DESKTOP-WEBOS</div>
+            </div>
+            <div class="spec-item">
+                <div class="spec-label">Processor</div>
+                <div class="spec-value" id="spec-cpu">Simulated Multi-core Processor @ 3.50GHz</div>
+            </div>
+            <div class="spec-item">
+                <div class="spec-label">Installed RAM</div>
+                <div class="spec-value" id="spec-ram">16.0 GB (15.8 GB usable)</div>
+            </div>
+            <div class="spec-item">
+                <div class="spec-label">System type</div>
+                <div class="spec-value">64-bit simulator, Web-based processor</div>
+            </div>
+            <div class="spec-item">
+                <div class="spec-label">Pen and touch</div>
+                <div class="spec-value" id="spec-touch">No pen or touch input is available for this display</div>
+            </div>
+
+            <h3 style="font-weight: 400; border-bottom: 1px solid #ccc; padding-bottom: 10px; margin-top: 40px; margin-bottom: 20px;">Windows specifications</h3>
+            <div class="spec-item">
+                <div class="spec-label">Edition</div>
+                <div class="spec-value">Windows 10 Pro Web Edition</div>
+            </div>
+            <div class="spec-item">
+                <div class="spec-label">Version</div>
+                <div class="spec-value">22H2</div>
+            </div>
+            <div class="spec-item">
+                <div class="spec-label">Installed on</div>
+                <div class="spec-value" id="spec-date"></div>
+            </div>
+            <div class="spec-item">
+                <div class="spec-label">OS build</div>
+                <div class="spec-value">19045.4291</div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        document.getElementById('spec-date').innerText = new Date().toLocaleDateString();
+        
+        if ('hardwareConcurrency' in navigator) {
+            document.getElementById('spec-cpu').innerText = `Simulated ${navigator.hardwareConcurrency}-Core Processor @ 3.50GHz`;
+        }
+        if ('deviceMemory' in navigator) {
+            document.getElementById('spec-ram').innerText = `${navigator.deviceMemory}.0 GB`;
+        }
+        if ('maxTouchPoints' in navigator && navigator.maxTouchPoints > 0) {
+            document.getElementById('spec-touch').innerText = `Touch support with ${navigator.maxTouchPoints} touch points`;
+        }
+        
+        function triggerBSOD() {
+            window.parent.document.dispatchEvent(new CustomEvent('os:bsod', { detail: 'USER_INITIATED_CRASH' }));
+        }
+    </script>
+</body>
+</html>
